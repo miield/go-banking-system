@@ -8,42 +8,42 @@ import (
 )
 
 type Account struct {
-	AccountNumber	int64
-	Name	string
-	Balance	float64
-	Transactions	[]Transaction
+	AccountNumber int64
+	Name          string
+	Balance       float64
+	Transactions  []Transaction
 }
 
 type Transaction struct {
-	TransactionID	int32
-	Type	string
-	Amount	float64
-	Timestamp	time.Time
+	TransactionID int32
+	Type          string
+	Amount        float64
+	Timestamp     time.Time
 }
 
-// map to track and update the 
-var accounts = make(map[int64] *Account)
+// map to track and update the
+var accounts = make(map[int64]*Account)
 
 // all account
-var allAccount = [] Account{}
+var allAccount = []Account{}
 
 // transaction slice
-var transactionList = [] Transaction{}
+var transactionList = []Transaction{}
 
-/*  the value(*Account) of the map is a pointer, pointing to the newAccount 
-	is the memory storage of every newly created account, as a reference.
+/*  the value(*Account) of the map is a pointer, pointing to the newAccount
+is the memory storage of every newly created account, as a reference.
 */
 
 func createAccount(accountName string, initialDeposit float64) (*Account, error) {
 
 	// checks for name == ""
 	if accountName == "" {
-		return nil, errors.New("Name cannot be empty")
+		return nil, errors.New("name cannot be empty")
 	}
 
 	// checks for the initial deposit != (-neg) || 0
 	if initialDeposit <= 0 {
-		return nil, fmt.Errorf("The amount must be greater than zero: %.2f\n", initialDeposit)
+		return nil, fmt.Errorf("the amount must be greater than zero: %.2f", initialDeposit)
 	}
 
 	// generate the random account number
@@ -56,9 +56,9 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	// create new account number
 	newAccount := &Account{
 		AccountNumber: accountNumber,
-		Name: accountName,
-		Balance: initialDeposit,
-		Transactions: []Transaction{},
+		Name:          accountName,
+		Balance:       initialDeposit,
+		Transactions:  []Transaction{},
 	}
 
 	// save in maps pointing to the memory location of the new accounts
@@ -67,11 +67,11 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	allAccount = append(allAccount, *newAccount)
 
 	// set the transaction struct
-	initialTxn := Transaction {
-		TransactionID: int32 (len(newAccount.Transactions) + 1),
-		Type: "Deposit",
-		Amount: initialDeposit,
-		Timestamp: time.Now(),
+	initialTxn := Transaction{
+		TransactionID: int32(len(newAccount.Transactions) + 1),
+		Type:          "Deposit",
+		Amount:        initialDeposit,
+		Timestamp:     time.Now(),
 	}
 
 	// update the user record transactions
@@ -81,31 +81,31 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	transactionList = append(transactionList, initialTxn)
 
 	fmt.Printf("Account created successfully: Name: %s, Account number: %d, Account balance: %f \n",
-	newAccount.Name, newAccount.AccountNumber, newAccount.Balance)
+		newAccount.Name, newAccount.AccountNumber, newAccount.Balance)
 
 	return newAccount, nil
 }
 
-func depositMoney(accountNumber int64, amount float64, ) (*Account, error) {
+func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 	// check for the account existence
 	if _, exists := accounts[accountNumber]; !exists {
-		return nil, fmt.Errorf("Account number %d doesn't exist\n", accountNumber)
+		return nil, fmt.Errorf("account number %d doesn't exist", accountNumber)
 	}
 
 	// checks for the amount
 	if amount <= 0 {
-		return nil, fmt.Errorf("The amount %.2f you entered must be greater than zero \n", amount)
+		return nil, fmt.Errorf("the amount %.2f you entered must be greater than zero", amount)
 	}
 
-	account := accounts[accountNumber] 
+	account := accounts[accountNumber]
 	account.Balance += amount
 
 	// set the transaction struct
-	depositTxn := Transaction {
-		TransactionID: int32 (len(account.Transactions) + 1),
-		Type: "Deposit",
-		Amount: amount,
-		Timestamp: time.Now(),
+	depositTxn := Transaction{
+		TransactionID: int32(len(account.Transactions) + 1),
+		Type:          "Deposit",
+		Amount:        amount,
+		Timestamp:     time.Now(),
 	}
 
 	// update the user record transactions
@@ -122,23 +122,23 @@ func depositMoney(accountNumber int64, amount float64, ) (*Account, error) {
 func withdrawMoney(accountNumber int64, amount float64) error {
 	// check for the account existence
 	if _, exists := accounts[accountNumber]; !exists {
-		return fmt.Errorf("Account number %d doesn't exist\n", accountNumber)
+		return fmt.Errorf("Account number %d doesn't exist", accountNumber)
 	}
 
 	// checks for the amount
 	if amount <= 0 {
-		return fmt.Errorf("The amount %.2f you entered must be greater than zero \n", amount)
+		return fmt.Errorf("the amount %.2f you entered must be greater than zero", amount)
 	}
 
-	account := accounts[accountNumber] 
+	account := accounts[accountNumber]
 	account.Balance -= amount
 
 	// set the transaction struct
 	withdrawTxn := Transaction{
 		TransactionID: int32(len(account.Transactions) + 1),
-		Type: "Withdraw",
-		Amount: amount,
-		Timestamp: time.Now(),
+		Type:          "Withdraw",
+		Amount:        amount,
+		Timestamp:     time.Now(),
 	}
 
 	// record the transaction for the user
@@ -150,32 +150,32 @@ func withdrawMoney(accountNumber int64, amount float64) error {
 	fmt.Printf("Withdrawal of %.2f from account %d is successful. \n", amount, accountNumber)
 
 	return nil
-} 
+}
 
 func transferMoney(sender int64, receiver int64, amount float64) error {
 	// check for the accounts existence
-	if _, exists := accounts[sender] ; !exists {
-		return fmt.Errorf("Account number %d doesn't exist\n", sender)
+	if _, exists := accounts[sender]; !exists {
+		return fmt.Errorf("account number %d doesn't exist", sender)
 	}
 
 	if _, exists := accounts[receiver]; !exists {
-		return fmt.Errorf("Account number %d doesn't exist\n", receiver)
+		return fmt.Errorf("account number %d doesn't exist", receiver)
 	}
 
 	// checks for the amount
 	if amount <= 0 {
-		return fmt.Errorf("The amount %.2f you entered must be greater than zero \n", amount)
+		return fmt.Errorf("the amount %.2f you entered must be greater than zero", amount)
 	}
 
-	senderAccount := accounts[sender] 
+	senderAccount := accounts[sender]
 	receiverAccount := accounts[receiver]
 
 	// set transaction for the sender
 	senderTxn := Transaction{
 		TransactionID: int32(len(senderAccount.Transactions) + 1),
-		Type: "Transfer",
-		Amount: amount,
-		Timestamp: time.Now(),
+		Type:          "Transfer",
+		Amount:        amount,
+		Timestamp:     time.Now(),
 	}
 
 	// record this transaction for the user
@@ -190,9 +190,9 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 	// set the transaction struct
 	receiverTxn := Transaction{
 		TransactionID: int32(len(receiverAccount.Transactions) + 1),
-		Type: "Credit",
-		Amount: amount,
-		Timestamp: time.Now(),
+		Type:          "Credit",
+		Amount:        amount,
+		Timestamp:     time.Now(),
 	}
 
 	// set the transaction for the user
@@ -202,7 +202,7 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 	transactionList = append(transactionList, receiverTxn)
 
 	fmt.Printf("Transfer of %.2f from account %d to account %d is successful \n", amount, sender, receiver)
-	
+
 	return nil
 }
 
@@ -210,7 +210,7 @@ func viewAccountDetails(accountNumber int64) (*Account, error) {
 	account, exists := accounts[accountNumber]
 	if !exists {
 		return nil, fmt.Errorf("Account number %d is either invalid or doesn't exist", accountNumber)
-		
+
 	}
 
 	// prints the struct fields with their names
@@ -287,7 +287,7 @@ func main() {
 
 	// STATEMENT
 	accountStatementErr := generateStatement(account.AccountNumber)
-	if accDetailErr != nil {
+	if accountStatementErr != nil {
 		fmt.Println("Error: ", accountStatementErr)
 		return
 	}
@@ -295,4 +295,3 @@ func main() {
 	// ACCOUNTS DISPLAY
 	displayAllAccounts()
 }
-
