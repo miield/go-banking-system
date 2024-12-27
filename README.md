@@ -35,6 +35,4 @@ Run the program:
 ## Project Structure
 ├── main.go          : Core banking logic and main entry point of the application
 
-├── project.go       : Project description
-
 ├── README.md        : Project documentation (this file)

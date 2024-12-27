@@ -51,8 +51,6 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	source := rand.New(seed)
 	accountNumber := source.Int63n(999999999) + 1000000000
 
-	// check if account exists
-
 	// create new account number
 	newAccount := &Account{
 		AccountNumber: accountNumber,
@@ -80,8 +78,8 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	// add transaction globally
 	transactionList = append(transactionList, initialTxn)
 
-	fmt.Printf("Account created successfully: Name: %s, Account number: %d, Account balance: %f \n",
-		newAccount.Name, newAccount.AccountNumber, newAccount.Balance)
+	// fmt.Printf("Account created successfully: Name: %s, Account number: %d, Account balance: %.2f \n",
+	// 	newAccount.Name, newAccount.AccountNumber, newAccount.Balance)
 
 	return newAccount, nil
 }
@@ -240,58 +238,169 @@ func displayAllAccounts() {
 }
 
 func main() {
-	// CREATE ACCOUNT
-	// getting different account number for the same user at every call ????
-	account, err := createAccount("Oyindamola Abiola", 1000000.00)
-	if err != nil { // Check for error
-		fmt.Println("Error:", err)
-		return
-	}
+	for {
+        fmt.Println("\n=== Banking System ===")
+        fmt.Println("1. Create Account")
+        fmt.Println("2. Deposit Money")
+        fmt.Println("3. Withdraw Money")
+        fmt.Println("4. Transfer Money")
+        fmt.Println("5. View Account Details")
+        fmt.Println("6. Generate Account Statement")
+        fmt.Println("7. Display All Accounts")
+        fmt.Println("8. Exit")
+        var choice int
+        fmt.Print("Enter your choice: ")
+        fmt.Scan(&choice)
+        switch choice {
+        case 1:
+			var fullName string
+			var initialDeposit float64
+			fmt.Println("Enter your full name: ")
+			fmt.Scan(&fullName)
+			fmt.Println("Enter the initial deposit: ")
+			fmt.Scan(&initialDeposit)
 
-	// account 2
-	account2, err2 := createAccount("Efunroye Abosede", 200000.00)
-	if err2 != nil { // Check for error
-		fmt.Println("Error:", err2)
-		return
-	}
+			account, err := createAccount(fullName, initialDeposit)
+			if err != nil { // Check for error
+				fmt.Println("Error:", err)
+			} else {
+				// fmt.Printf("Account created successfully: %+v\n", account)
+				fmt.Printf("Account created successfully: Name: %s, Account number: %d, Account balance: %.2f \n",
+				account.Name, account.AccountNumber, account.Balance)
+			}
 
-	// DEPOSIT
-	_, depositErr := depositMoney(account.AccountNumber, 700000000.00)
-	if depositErr != nil {
-		fmt.Println("Error:", depositErr)
-		return
-	}
+        case 2:
+			var accountNumber int64
+			var depositAmount float64
+			fmt.Println("Enter the account number you wish to deposit into: ")
+			fmt.Scan(&accountNumber)
+			fmt.Println("Enter the amount to be deposited: ")
+			fmt.Scan(&depositAmount)
 
-	// WITHDRAW
-	amountWithdrawn := 20000.00
-	withdrawErr := withdrawMoney(account.AccountNumber, amountWithdrawn)
-	if withdrawErr != nil {
-		fmt.Println("Error:", withdrawErr)
-		return
-	}
+			_, depositErr := depositMoney(accountNumber, depositAmount)
+			if depositErr != nil {
+				fmt.Println("Error:", depositErr)
+				return
+			}
 
-	// TRANSFER
-	amountTransferred := 90000.00
-	transferErr := transferMoney(account.AccountNumber, account2.AccountNumber, amountTransferred)
-	if transferErr != nil { // not empty
-		fmt.Println("Error: ", transferErr)
-		return
-	}
+        case 3:
+			var accountNumber int64
+			var amountWithdrawn float64
+			fmt.Println("Enter the account number: ")
+			fmt.Scan(&accountNumber)
+			fmt.Println("Enter the amount: ")
+			fmt.Scan(&amountWithdrawn)
 
-	// ACCOUNT DETAILS
-	account, accDetailErr := viewAccountDetails(account2.AccountNumber)
-	if accDetailErr != nil {
-		fmt.Println("Error: ", accDetailErr)
-		return
-	}
+			withdrawErr := withdrawMoney(accountNumber, amountWithdrawn)
+			if withdrawErr != nil {
+				fmt.Println("Error:", withdrawErr)
+				return
+			}
 
-	// STATEMENT
-	accountStatementErr := generateStatement(account.AccountNumber)
-	if accountStatementErr != nil {
-		fmt.Println("Error: ", accountStatementErr)
-		return
-	}
+        case 4:
+			var receiverAccount int64
+			var senderAccount int64
+			var transferAmount float64
+			fmt.Println("Enter the sender account number: ")
+			fmt.Scan(&receiverAccount)
+			fmt.Println("Enter the receiver account number: ")
+			fmt.Scan(&senderAccount)
+			fmt.Println("Enter the amount: ")
+			fmt.Scan(&transferAmount)
 
-	// ACCOUNTS DISPLAY
-	displayAllAccounts()
+			transferErr := transferMoney(receiverAccount, senderAccount, transferAmount)
+			if transferErr != nil { // not empty
+				fmt.Println("Error: ", transferErr)
+				return
+			}
+
+        case 5:
+			var accountNumber int64
+			fmt.Print("Enter account number: ")
+			fmt.Scan(&accountNumber)
+			
+			account, accDetailErr := viewAccountDetails(accountNumber)
+			if accDetailErr != nil {
+				fmt.Println("Error:", accDetailErr)
+			} else {
+				fmt.Printf("Account Details: %+v\n", account)
+			}
+
+        case 6:
+			var accountNumber int64
+			fmt.Print("Enter account number: ")
+			fmt.Scan(&accountNumber)
+
+			accountStatementErr := generateStatement(accountNumber)
+			if accountStatementErr != nil {
+				fmt.Println("Error:", accountStatementErr)
+				return
+			}
+
+        case 7:
+            displayAllAccounts()
+        case 8:
+            fmt.Println("Exiting... Thank you!")
+            return
+        default:
+            fmt.Println("Invalid choice. Please try again.")
+        }
+    }
 }
+
+// func main() {
+// 	// CREATE ACCOUNT
+// 	// getting different account number for the same user at every call ????
+	// account, err := createAccount("Oyindamola Abiola", 1000000.00)
+	// if err != nil { // Check for error
+	// 	fmt.Println("Error:", err)
+	// 	return
+	// }
+
+	// // account 2
+	// account2, err2 := createAccount("Efunroye Abosede", 200000.00)
+	// if err2 != nil { // Check for error
+	// 	fmt.Println("Error:", err2)
+	// 	return
+	// }
+
+// 	// DEPOSIT
+// 	_, depositErr := depositMoney(account.AccountNumber, 700000000.00)
+// 	if depositErr != nil {
+// 		fmt.Println("Error:", depositErr)
+// 		return
+// 	}
+
+// 	// WITHDRAW
+// 	amountWithdrawn := 20000.00
+// 	withdrawErr := withdrawMoney(account.AccountNumber, amountWithdrawn)
+// 	if withdrawErr != nil {
+// 		fmt.Println("Error:", withdrawErr)
+// 		return
+// 	}
+
+// 	// TRANSFER
+// 	amountTransferred := 90000.00
+// 	transferErr := transferMoney(account.AccountNumber, account2.AccountNumber, amountTransferred)
+// 	if transferErr != nil { // not empty
+// 		fmt.Println("Error: ", transferErr)
+// 		return
+// 	}
+
+// 	// ACCOUNT DETAILS
+// 	account, accDetailErr := viewAccountDetails(account2.AccountNumber)
+// 	if accDetailErr != nil {
+// 		fmt.Println("Error: ", accDetailErr)
+// 		return
+// 	}
+
+// 	// STATEMENT
+// 	accountStatementErr := generateStatement(account.AccountNumber)
+// 	if accountStatementErr != nil {
+// 		fmt.Println("Error: ", accountStatementErr)
+// 		return
+// 	}
+
+// 	// ACCOUNTS DISPLAY
+// 	displayAllAccounts()
+// }
