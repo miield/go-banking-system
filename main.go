@@ -15,14 +15,14 @@ type Account struct {
 }
 
 type Transaction struct {
-	TransactionID int32
+	TransactionID string
 	Type          string
 	Amount        float64
 	Timestamp     time.Time
 }
 
-// map to track and update the
-var accounts = make(map[int64]*Account)
+// map to track and update the 
+var accounts = make(map[int64] *Account)
 
 // all account
 var allAccount = []Account{}
@@ -52,7 +52,7 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	accountNumber := source.Int63n(999999999) + 1000000000
 
 	// create new account number
-	newAccount := &Account{
+	newAccount := &Account {
 		AccountNumber: accountNumber,
 		Name:          accountName,
 		Balance:       initialDeposit,
@@ -65,12 +65,15 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	allAccount = append(allAccount, *newAccount)
 
 	// set the transaction struct
-	initialTxn := Transaction{
-		TransactionID: int32(len(newAccount.Transactions) + 1),
+	initialTxn := Transaction {
+		TransactionID: generateTransactionId(), // make it 16char alphanumeric ?????
 		Type:          "Deposit",
 		Amount:        initialDeposit,
 		Timestamp:     time.Now(),
 	}
+
+// TO-DO ?????
+// Track account to transactions only !!!!
 
 	// update the user record transactions
 	newAccount.Transactions = append(newAccount.Transactions, initialTxn)
@@ -84,6 +87,17 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	return newAccount, nil
 }
 
+func generateTransactionId() string {
+	charRange := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	charSlice := make([]byte, 16)
+	seed := rand.NewSource(time.Now().UTC().UnixNano())
+	source := rand.New(seed)
+	for i := range charRange { 
+		charSlice[i] = charRange[source.Intn(len(charRange))]
+	}
+	return string(charSlice)
+}
+
 func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 	// check for the account existence
 	if _, exists := accounts[accountNumber]; !exists {
@@ -95,12 +109,13 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 		return nil, fmt.Errorf("the amount %.2f you entered must be greater than zero", amount)
 	}
 
+	// fetched account 
 	account := accounts[accountNumber]
 	account.Balance += amount
 
 	// set the transaction struct
 	depositTxn := Transaction{
-		TransactionID: int32(len(account.Transactions) + 1),
+		TransactionID: generateTransactionId(),
 		Type:          "Deposit",
 		Amount:        amount,
 		Timestamp:     time.Now(),
@@ -129,11 +144,17 @@ func withdrawMoney(accountNumber int64, amount float64) error {
 	}
 
 	account := accounts[accountNumber]
+
+	// check for insufficient balance ???
+	if amount < account.Balance {
+		return errors.New("insufficient balance")
+	}
+
 	account.Balance -= amount
 
 	// set the transaction struct
 	withdrawTxn := Transaction{
-		TransactionID: int32(len(account.Transactions) + 1),
+		TransactionID: generateTransactionId(),
 		Type:          "Withdraw",
 		Amount:        amount,
 		Timestamp:     time.Now(),
@@ -166,11 +187,17 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 	}
 
 	senderAccount := accounts[sender]
+
+	// check for insufficient balance
+	if amount < senderAccount.Balance {
+		return errors.New("insufficient balance")
+	}
+
 	receiverAccount := accounts[receiver]
 
 	// set transaction for the sender
 	senderTxn := Transaction{
-		TransactionID: int32(len(senderAccount.Transactions) + 1),
+		TransactionID: generateTransactionId(),
 		Type:          "Transfer",
 		Amount:        amount,
 		Timestamp:     time.Now(),
@@ -187,7 +214,7 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 
 	// set the transaction struct
 	receiverTxn := Transaction{
-		TransactionID: int32(len(receiverAccount.Transactions) + 1),
+		TransactionID: generateTransactionId(),
 		Type:          "Credit",
 		Amount:        amount,
 		Timestamp:     time.Now(),
@@ -208,7 +235,6 @@ func viewAccountDetails(accountNumber int64) (*Account, error) {
 	account, exists := accounts[accountNumber]
 	if !exists {
 		return nil, fmt.Errorf("Account number %d is either invalid or doesn't exist", accountNumber)
-
 	}
 
 	// prints the struct fields with their names
@@ -223,6 +249,9 @@ func generateStatement(accountNumber int64) error {
 		return fmt.Errorf("Account number %d is either invalid or doesn't exist", accountNumber)
 
 	}
+
+	// TO-DO ????
+	// revamp to filter date & timestamp?????
 
 	accountStatement := account.Transactions
 
@@ -347,60 +376,3 @@ func main() {
         }
     }
 }
-
-// func main() {
-// 	// CREATE ACCOUNT
-// 	// getting different account number for the same user at every call ????
-	// account, err := createAccount("Oyindamola Abiola", 1000000.00)
-	// if err != nil { // Check for error
-	// 	fmt.Println("Error:", err)
-	// 	return
-	// }
-
-	// // account 2
-	// account2, err2 := createAccount("Efunroye Abosede", 200000.00)
-	// if err2 != nil { // Check for error
-	// 	fmt.Println("Error:", err2)
-	// 	return
-	// }
-
-// 	// DEPOSIT
-// 	_, depositErr := depositMoney(account.AccountNumber, 700000000.00)
-// 	if depositErr != nil {
-// 		fmt.Println("Error:", depositErr)
-// 		return
-// 	}
-
-// 	// WITHDRAW
-// 	amountWithdrawn := 20000.00
-// 	withdrawErr := withdrawMoney(account.AccountNumber, amountWithdrawn)
-// 	if withdrawErr != nil {
-// 		fmt.Println("Error:", withdrawErr)
-// 		return
-// 	}
-
-// 	// TRANSFER
-// 	amountTransferred := 90000.00
-// 	transferErr := transferMoney(account.AccountNumber, account2.AccountNumber, amountTransferred)
-// 	if transferErr != nil { // not empty
-// 		fmt.Println("Error: ", transferErr)
-// 		return
-// 	}
-
-// 	// ACCOUNT DETAILS
-// 	account, accDetailErr := viewAccountDetails(account2.AccountNumber)
-// 	if accDetailErr != nil {
-// 		fmt.Println("Error: ", accDetailErr)
-// 		return
-// 	}
-
-// 	// STATEMENT
-// 	accountStatementErr := generateStatement(account.AccountNumber)
-// 	if accountStatementErr != nil {
-// 		fmt.Println("Error: ", accountStatementErr)
-// 		return
-// 	}
-
-// 	// ACCOUNTS DISPLAY
-// 	displayAllAccounts()
-// }
