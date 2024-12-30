@@ -30,6 +30,10 @@ var allAccount = []Account{}
 // transaction slice
 var transactionList = []Transaction{}
 
+// TO-DO ?????
+// Track account to slice of account transactions only
+var accountTransactions = make(map[int64] []Transaction)
+
 /*  the value(*Account) of the map is a pointer, pointing to the newAccount
 is the memory storage of every newly created account, as a reference.
 */
@@ -72,11 +76,11 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 		Timestamp:     time.Now(),
 	}
 
-// TO-DO ?????
-// Track account to transactions only !!!!
-
 	// update the user record transactions
 	newAccount.Transactions = append(newAccount.Transactions, initialTxn)
+
+	// add the txn to the list of transaction corresponding to the account
+	accountTransactions[accountNumber] = append(accountTransactions[accountNumber], initialTxn)
 
 	// add transaction globally
 	transactionList = append(transactionList, initialTxn)
@@ -124,6 +128,9 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 	// update the user record transactions
 	account.Transactions = append(account.Transactions, depositTxn)
 
+	// add the txn to be tracked with the account number
+	accountTransactions[accountNumber] = append(accountTransactions[accountNumber], depositTxn)
+
 	// add transaction globally
 	transactionList = append(transactionList, depositTxn)
 
@@ -162,6 +169,9 @@ func withdrawMoney(accountNumber int64, amount float64) error {
 
 	// record the transaction for the user
 	account.Transactions = append(account.Transactions, withdrawTxn)
+
+	// add the txn to the account's tnxs to be tracked witht the account number
+	accountTransactions[accountNumber] = append(accountTransactions[accountNumber], withdrawTxn)
 
 	// record the transaction global
 	transactionList = append(transactionList, withdrawTxn)
@@ -206,6 +216,9 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 	// record this transaction for the user
 	senderAccount.Transactions = append(senderAccount.Transactions, senderTxn)
 
+	// add the txn to the account txns to be tracked with the account number
+	accountTransactions[sender] = append(accountTransactions[sender], senderTxn)
+
 	// record this transaction
 	transactionList = append(transactionList, senderTxn)
 
@@ -222,6 +235,9 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 
 	// set the transaction for the user
 	receiverAccount.Transactions = append(receiverAccount.Transactions, receiverTxn)
+
+	// add the txn to the account txns to be tracked with the account number
+	accountTransactions[receiver] = append(accountTransactions[receiver], receiverTxn)
 
 	// record globally
 	transactionList = append(transactionList, receiverTxn)
