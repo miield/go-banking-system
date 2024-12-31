@@ -140,26 +140,26 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 }
 
 func withdrawMoney(accountNumber int64, amount float64) error {
-	// check for the account existence
+	// Validate account existence
 	if _, exists := accounts[accountNumber]; !exists {
 		return fmt.Errorf("Account number %d doesn't exist", accountNumber)
 	}
 
-	// checks for the amount
+	// Validate withdrawal amount
 	if amount <= 0 {
 		return fmt.Errorf("the amount %.2f you entered must be greater than zero", amount)
 	}
 
+	// Retrieve account and check balance
 	account := accounts[accountNumber]
-
-	// check for insufficient balance ???
-	if amount < account.Balance {
+	if account.Balance < amount {
 		return errors.New("insufficient balance")
 	}
 
+	// Deduct amount from balance
 	account.Balance -= amount
 
-	// set the transaction struct
+	// Create withdrawal transaction
 	withdrawTxn := Transaction{
 		TransactionID: generateTransactionId(),
 		Type:          "Withdraw",
@@ -167,22 +167,19 @@ func withdrawMoney(accountNumber int64, amount float64) error {
 		Timestamp:     time.Now(),
 	}
 
-	// record the transaction for the user
+	// Record transaction for the account
 	account.Transactions = append(account.Transactions, withdrawTxn)
-
-	// add the txn to the account's tnxs to be tracked witht the account number
 	accountTransactions[accountNumber] = append(accountTransactions[accountNumber], withdrawTxn)
-
-	// record the transaction global
 	transactionList = append(transactionList, withdrawTxn)
 
+	// Confirm withdrawal
 	fmt.Printf("Withdrawal of %.2f from account %d is successful. \n", amount, accountNumber)
 
 	return nil
 }
 
 func transferMoney(sender int64, receiver int64, amount float64) error {
-	// check for the accounts existence
+	// Validate sender and receiver accounts
 	if _, exists := accounts[sender]; !exists {
 		return fmt.Errorf("account number %d doesn't exist", sender)
 	}
@@ -191,21 +188,22 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 		return fmt.Errorf("account number %d doesn't exist", receiver)
 	}
 
-	// checks for the amount
+	// Validate transfer amount
 	if amount <= 0 {
 		return fmt.Errorf("the amount %.2f you entered must be greater than zero", amount)
 	}
 
+	// Retrieve sender and receiver accounts
 	senderAccount := accounts[sender]
+	receiverAccount := accounts[receiver]
 
-	// check for insufficient balance
-	if amount < senderAccount.Balance {
+	// Check for sufficient balance in the sender's account
+	if senderAccount.Balance < amount {
 		return errors.New("insufficient balance")
 	}
 
-	receiverAccount := accounts[receiver]
-
-	// set transaction for the sender
+	// Deduct amount from sender's account and create transaction
+	senderAccount.Balance -= amount
 	senderTxn := Transaction{
 		TransactionID: generateTransactionId(),
 		Type:          "Transfer",
@@ -213,19 +211,13 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 		Timestamp:     time.Now(),
 	}
 
-	// record this transaction for the user
+	// Record sender's transaction
 	senderAccount.Transactions = append(senderAccount.Transactions, senderTxn)
-
-	// add the txn to the account txns to be tracked with the account number
 	accountTransactions[sender] = append(accountTransactions[sender], senderTxn)
-
-	// record this transaction
 	transactionList = append(transactionList, senderTxn)
 
-	senderAccount.Balance -= amount
+	// Credit amount to receiver's account and create transaction
 	receiverAccount.Balance += amount
-
-	// set the transaction struct
 	receiverTxn := Transaction{
 		TransactionID: generateTransactionId(),
 		Type:          "Credit",
@@ -233,17 +225,13 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 		Timestamp:     time.Now(),
 	}
 
-	// set the transaction for the user
+	// Record receiver's transaction
 	receiverAccount.Transactions = append(receiverAccount.Transactions, receiverTxn)
-
-	// add the txn to the account txns to be tracked with the account number
 	accountTransactions[receiver] = append(accountTransactions[receiver], receiverTxn)
-
-	// record globally
 	transactionList = append(transactionList, receiverTxn)
 
+	// Confirm transfer
 	fmt.Printf("Transfer of %.2f from account %d to account %d is successful \n", amount, sender, receiver)
-
 	return nil
 }
 
