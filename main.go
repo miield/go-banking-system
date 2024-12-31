@@ -21,6 +21,13 @@ type Transaction struct {
 	Timestamp     time.Time
 }
 
+type FilterTransaction struct {
+    accountNumber int64
+	transactionType string
+    fromDate time.Time
+    toDate time.Time
+}
+
 // map to track and update the 
 var accounts = make(map[int64] *Account)
 
@@ -30,8 +37,6 @@ var allAccount = []Account{}
 // transaction slice
 var transactionList = []Transaction{}
 
-// TO-DO ?????
-// Track account to slice of account transactions only
 var accountTransactions = make(map[int64] []Transaction)
 
 /*  the value(*Account) of the map is a pointer, pointing to the newAccount
@@ -247,21 +252,52 @@ func viewAccountDetails(accountNumber int64) (*Account, error) {
 	return account, nil
 }
 
-func generateStatement(accountNumber int64) error {
-	account, exists := accounts[accountNumber]
+func generateStatement(filter FilterTransaction) error {
+	account, exists := accounts[filter.accountNumber]
 	if !exists {
-		return fmt.Errorf("Account number %d is either invalid or doesn't exist", accountNumber)
-
+		return fmt.Errorf("Account number %d is either invalid or doesn't exist", filter.accountNumber)
 	}
 
-	// TO-DO ????
-	// revamp to filter date & timestamp?????
+	// filter transactions by date range
+	filteredTransactions, err := filterTransactions(filter)
+	if err != nil {
+		return err
+	}
 
-	accountStatement := account.Transactions
-
-	fmt.Printf("Statement of the account: Name: %s, %+v \n", account.Name, accountStatement)
+	// formatting the output
+	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
+	fmt.Println("--------------------------------------------------------------------")
+	fmt.Println("Transaction ID | Type     | Amount     | Timestamp")
+	for _, txn := range filteredTransactions {
+		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
+	}
+	fmt.Println("--------------------------------------------------------------------")
 
 	return nil
+}
+
+func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
+	account, exists := accounts[filter.accountNumber]
+	if !exists {
+		return nil, fmt.Errorf("account number %d is either invalid or doesn't exist", filter.accountNumber)
+	}
+
+	// slice container for the filtered transaction 
+	filteredTransactions := []Transaction {}
+
+	// txn is an instance of Transaction struct of account
+	for _, txn := range account.Transactions {
+		if txn.Timestamp.Equal(filter.fromDate) || txn.Timestamp.Equal(filter.toDate) || 
+		txn.Timestamp.After(filter.fromDate) && txn.Timestamp.Before(filter.toDate) {
+			filteredTransactions = append(filteredTransactions, txn)
+		}
+	}
+
+	if len(filteredTransactions) == 0 {
+		return nil, fmt.Errorf("no transactions found for Account %d within the specified range", filter.accountNumber)
+	}
+
+	return filteredTransactions, nil
 }
 
 func displayAllAccounts() {
@@ -359,16 +395,43 @@ func main() {
 				fmt.Printf("Account Details: %+v\n", account)
 			}
 
-        case 6:
-			var accountNumber int64
-			fmt.Print("Enter account number: ")
-			fmt.Scan(&accountNumber)
-
-			accountStatementErr := generateStatement(accountNumber)
-			if accountStatementErr != nil {
-				fmt.Println("Error:", accountStatementErr)
+		case 6:
+			// prompt the user for filtering info
+			var fromDateStr, toDateStr string
+			fmt.Print("Enter start date (DD/MM/YYYY): ")
+			fmt.Scan(&fromDateStr)
+			fmt.Print("Enter end date (DD/MM/YYYY): ")
+			fmt.Scan(&toDateStr)
+		
+			// check the dates
+			fromDate, err := time.Parse("O2-01-2006", fromDateStr)
+			if err != nil {
+				fmt.Println("Invalid start date format. Please use DD/MM/YYYY.")
 				return
 			}
+		
+			toDate, err := time.Parse("O2-01-2006", toDateStr)
+			if err != nil {
+				fmt.Println("Invalid end date format. Please use DD/MM/YYYY.")
+				return
+			}
+		
+			// Create the FilterTransaction instance
+			filter := FilterTransaction{
+				accountNumber: accountNumber,
+				transactionType: "", // empty means all types
+				fromDate: fromDate,
+				toDate: toDate,
+			}
+		
+			// Call generateStatement with the filter
+			err = generateStatement(filter)
+			if err != nil {
+				fmt.Printf("Error generating statement: %s\n", err)
+				return
+			}
+		
+			fmt.Println("Statement generated successfully.")		
 
         case 7:
             displayAllAccounts()
