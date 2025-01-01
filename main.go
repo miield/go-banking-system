@@ -396,6 +396,10 @@ func main() {
 			}
 
 		case 6:
+			var accountNumber int64
+			fmt.Print("Enter account number: ")
+			fmt.Scan(&accountNumber)
+
 			// prompt the user for filtering info
 			var fromDateStr, toDateStr string
 			fmt.Print("Enter start date (DD/MM/YYYY): ")
@@ -403,7 +407,7 @@ func main() {
 			fmt.Print("Enter end date (DD/MM/YYYY): ")
 			fmt.Scan(&toDateStr)
 		
-			// check the dates
+			// check the dates and
 			fromDate, err := time.Parse("O2-01-2006", fromDateStr)
 			if err != nil {
 				fmt.Println("Invalid start date format. Please use DD/MM/YYYY.")
