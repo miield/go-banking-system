@@ -15,29 +15,20 @@ type Account struct {
 }
 
 type Transaction struct {
-	TransactionID string
+	TransactionID int32
 	Type          string
 	Amount        float64
 	Timestamp     time.Time
 }
 
-type FilterTransaction struct {
-    accountNumber int64
-	transactionType string
-    fromDate time.Time
-    toDate time.Time
-}
-
-// map to track and update the 
-var accounts = make(map[int64] *Account)
+// map to track and update the
+var accounts = make(map[int64]*Account)
 
 // all account
 var allAccount = []Account{}
 
 // transaction slice
 var transactionList = []Transaction{}
-
-var accountTransactions = make(map[int64] []Transaction)
 
 /*  the value(*Account) of the map is a pointer, pointing to the newAccount
 is the memory storage of every newly created account, as a reference.
@@ -61,7 +52,7 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	accountNumber := source.Int63n(999999999) + 1000000000
 
 	// create new account number
-	newAccount := &Account {
+	newAccount := &Account{
 		AccountNumber: accountNumber,
 		Name:          accountName,
 		Balance:       initialDeposit,
@@ -74,8 +65,8 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	allAccount = append(allAccount, *newAccount)
 
 	// set the transaction struct
-	initialTxn := Transaction {
-		TransactionID: generateTransactionId(), // make it 16char alphanumeric ?????
+	initialTxn := Transaction{
+		TransactionID: int32(len(newAccount.Transactions) + 1),
 		Type:          "Deposit",
 		Amount:        initialDeposit,
 		Timestamp:     time.Now(),
@@ -84,9 +75,6 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	// update the user record transactions
 	newAccount.Transactions = append(newAccount.Transactions, initialTxn)
 
-	// add the txn to the list of transaction corresponding to the account
-	accountTransactions[accountNumber] = append(accountTransactions[accountNumber], initialTxn)
-
 	// add transaction globally
 	transactionList = append(transactionList, initialTxn)
 
@@ -94,17 +82,6 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	// 	newAccount.Name, newAccount.AccountNumber, newAccount.Balance)
 
 	return newAccount, nil
-}
-
-func generateTransactionId() string {
-	charRange := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	charSlice := make([]byte, 16)
-	seed := rand.NewSource(time.Now().UTC().UnixNano())
-	source := rand.New(seed)
-	for i := range charRange { 
-		charSlice[i] = charRange[source.Intn(len(charRange))]
-	}
-	return string(charSlice)
 }
 
 func depositMoney(accountNumber int64, amount float64) (*Account, error) {
@@ -118,13 +95,12 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 		return nil, fmt.Errorf("the amount %.2f you entered must be greater than zero", amount)
 	}
 
-	// fetched account 
 	account := accounts[accountNumber]
 	account.Balance += amount
 
 	// set the transaction struct
 	depositTxn := Transaction{
-		TransactionID: generateTransactionId(),
+		TransactionID: int32(len(account.Transactions) + 1),
 		Type:          "Deposit",
 		Amount:        amount,
 		Timestamp:     time.Now(),
@@ -132,9 +108,6 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 
 	// update the user record transactions
 	account.Transactions = append(account.Transactions, depositTxn)
-
-	// add the txn to be tracked with the account number
-	accountTransactions[accountNumber] = append(accountTransactions[accountNumber], depositTxn)
 
 	// add transaction globally
 	transactionList = append(transactionList, depositTxn)
@@ -145,46 +118,40 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 }
 
 func withdrawMoney(accountNumber int64, amount float64) error {
-	// Validate account existence
+	// check for the account existence
 	if _, exists := accounts[accountNumber]; !exists {
 		return fmt.Errorf("Account number %d doesn't exist", accountNumber)
 	}
 
-	// Validate withdrawal amount
+	// checks for the amount
 	if amount <= 0 {
 		return fmt.Errorf("the amount %.2f you entered must be greater than zero", amount)
 	}
 
-	// Retrieve account and check balance
 	account := accounts[accountNumber]
-	if account.Balance < amount {
-		return errors.New("insufficient balance")
-	}
-
-	// Deduct amount from balance
 	account.Balance -= amount
 
-	// Create withdrawal transaction
+	// set the transaction struct
 	withdrawTxn := Transaction{
-		TransactionID: generateTransactionId(),
+		TransactionID: int32(len(account.Transactions) + 1),
 		Type:          "Withdraw",
 		Amount:        amount,
 		Timestamp:     time.Now(),
 	}
 
-	// Record transaction for the account
+	// record the transaction for the user
 	account.Transactions = append(account.Transactions, withdrawTxn)
-	accountTransactions[accountNumber] = append(accountTransactions[accountNumber], withdrawTxn)
+
+	// record the transaction global
 	transactionList = append(transactionList, withdrawTxn)
 
-	// Confirm withdrawal
 	fmt.Printf("Withdrawal of %.2f from account %d is successful. \n", amount, accountNumber)
 
 	return nil
 }
 
 func transferMoney(sender int64, receiver int64, amount float64) error {
-	// Validate sender and receiver accounts
+	// check for the accounts existence
 	if _, exists := accounts[sender]; !exists {
 		return fmt.Errorf("account number %d doesn't exist", sender)
 	}
@@ -193,50 +160,47 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 		return fmt.Errorf("account number %d doesn't exist", receiver)
 	}
 
-	// Validate transfer amount
+	// checks for the amount
 	if amount <= 0 {
 		return fmt.Errorf("the amount %.2f you entered must be greater than zero", amount)
 	}
 
-	// Retrieve sender and receiver accounts
 	senderAccount := accounts[sender]
 	receiverAccount := accounts[receiver]
 
-	// Check for sufficient balance in the sender's account
-	if senderAccount.Balance < amount {
-		return errors.New("insufficient balance")
-	}
-
-	// Deduct amount from sender's account and create transaction
-	senderAccount.Balance -= amount
+	// set transaction for the sender
 	senderTxn := Transaction{
-		TransactionID: generateTransactionId(),
+		TransactionID: int32(len(senderAccount.Transactions) + 1),
 		Type:          "Transfer",
 		Amount:        amount,
 		Timestamp:     time.Now(),
 	}
 
-	// Record sender's transaction
+	// record this transaction for the user
 	senderAccount.Transactions = append(senderAccount.Transactions, senderTxn)
-	accountTransactions[sender] = append(accountTransactions[sender], senderTxn)
+
+	// record this transaction
 	transactionList = append(transactionList, senderTxn)
 
-	// Credit amount to receiver's account and create transaction
+	senderAccount.Balance -= amount
 	receiverAccount.Balance += amount
+
+	// set the transaction struct
 	receiverTxn := Transaction{
-		TransactionID: generateTransactionId(),
+		TransactionID: int32(len(receiverAccount.Transactions) + 1),
 		Type:          "Credit",
 		Amount:        amount,
 		Timestamp:     time.Now(),
 	}
 
-	// Record receiver's transaction
+	// set the transaction for the user
 	receiverAccount.Transactions = append(receiverAccount.Transactions, receiverTxn)
-	accountTransactions[receiver] = append(accountTransactions[receiver], receiverTxn)
+
+	// record globally
 	transactionList = append(transactionList, receiverTxn)
 
-	// Confirm transfer
 	fmt.Printf("Transfer of %.2f from account %d to account %d is successful \n", amount, sender, receiver)
+
 	return nil
 }
 
@@ -244,6 +208,7 @@ func viewAccountDetails(accountNumber int64) (*Account, error) {
 	account, exists := accounts[accountNumber]
 	if !exists {
 		return nil, fmt.Errorf("Account number %d is either invalid or doesn't exist", accountNumber)
+
 	}
 
 	// prints the struct fields with their names
@@ -252,52 +217,18 @@ func viewAccountDetails(accountNumber int64) (*Account, error) {
 	return account, nil
 }
 
-func generateStatement(filter FilterTransaction) error {
-	account, exists := accounts[filter.accountNumber]
+func generateStatement(accountNumber int64) error {
+	account, exists := accounts[accountNumber]
 	if !exists {
-		return fmt.Errorf("Account number %d is either invalid or doesn't exist", filter.accountNumber)
+		return fmt.Errorf("Account number %d is either invalid or doesn't exist", accountNumber)
+
 	}
 
-	// filter transactions by date range
-	filteredTransactions, err := filterTransactions(filter)
-	if err != nil {
-		return err
-	}
+	accountStatement := account.Transactions
 
-	// formatting the output
-	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
-	fmt.Println("--------------------------------------------------------------------")
-	fmt.Println("Transaction ID | Type     | Amount     | Timestamp")
-	for _, txn := range filteredTransactions {
-		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
-	}
-	fmt.Println("--------------------------------------------------------------------")
+	fmt.Printf("Statement of the account: Name: %s, %+v \n", account.Name, accountStatement)
 
 	return nil
-}
-
-func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
-	account, exists := accounts[filter.accountNumber]
-	if !exists {
-		return nil, fmt.Errorf("account number %d is either invalid or doesn't exist", filter.accountNumber)
-	}
-
-	// slice container for the filtered transaction 
-	filteredTransactions := []Transaction {}
-
-	// txn is an instance of Transaction struct of account
-	for _, txn := range account.Transactions {
-		if txn.Timestamp.Equal(filter.fromDate) || txn.Timestamp.Equal(filter.toDate) || 
-		txn.Timestamp.After(filter.fromDate) && txn.Timestamp.Before(filter.toDate) {
-			filteredTransactions = append(filteredTransactions, txn)
-		}
-	}
-
-	if len(filteredTransactions) == 0 {
-		return nil, fmt.Errorf("no transactions found for Account %d within the specified range", filter.accountNumber)
-	}
-
-	return filteredTransactions, nil
 }
 
 func displayAllAccounts() {
@@ -395,47 +326,16 @@ func main() {
 				fmt.Printf("Account Details: %+v\n", account)
 			}
 
-		case 6:
+        case 6:
 			var accountNumber int64
 			fmt.Print("Enter account number: ")
 			fmt.Scan(&accountNumber)
 
-			// prompt the user for filtering info
-			var fromDateStr, toDateStr string
-			fmt.Print("Enter start date (DD/MM/YYYY): ")
-			fmt.Scan(&fromDateStr)
-			fmt.Print("Enter end date (DD/MM/YYYY): ")
-			fmt.Scan(&toDateStr)
-		
-			// check the dates and
-			fromDate, err := time.Parse("O2-01-2006", fromDateStr)
-			if err != nil {
-				fmt.Println("Invalid start date format. Please use DD/MM/YYYY.")
+			accountStatementErr := generateStatement(accountNumber)
+			if accountStatementErr != nil {
+				fmt.Println("Error:", accountStatementErr)
 				return
 			}
-		
-			toDate, err := time.Parse("O2-01-2006", toDateStr)
-			if err != nil {
-				fmt.Println("Invalid end date format. Please use DD/MM/YYYY.")
-				return
-			}
-		
-			// Create the FilterTransaction instance
-			filter := FilterTransaction{
-				accountNumber: accountNumber,
-				transactionType: "", // empty means all types
-				fromDate: fromDate,
-				toDate: toDate,
-			}
-		
-			// Call generateStatement with the filter
-			err = generateStatement(filter)
-			if err != nil {
-				fmt.Printf("Error generating statement: %s\n", err)
-				return
-			}
-		
-			fmt.Println("Statement generated successfully.")		
 
         case 7:
             displayAllAccounts()
@@ -447,3 +347,60 @@ func main() {
         }
     }
 }
+
+// func main() {
+// 	// CREATE ACCOUNT
+// 	// getting different account number for the same user at every call ????
+	// account, err := createAccount("Oyindamola Abiola", 1000000.00)
+	// if err != nil { // Check for error
+	// 	fmt.Println("Error:", err)
+	// 	return
+	// }
+
+	// // account 2
+	// account2, err2 := createAccount("Efunroye Abosede", 200000.00)
+	// if err2 != nil { // Check for error
+	// 	fmt.Println("Error:", err2)
+	// 	return
+	// }
+
+// 	// DEPOSIT
+// 	_, depositErr := depositMoney(account.AccountNumber, 700000000.00)
+// 	if depositErr != nil {
+// 		fmt.Println("Error:", depositErr)
+// 		return
+// 	}
+
+// 	// WITHDRAW
+// 	amountWithdrawn := 20000.00
+// 	withdrawErr := withdrawMoney(account.AccountNumber, amountWithdrawn)
+// 	if withdrawErr != nil {
+// 		fmt.Println("Error:", withdrawErr)
+// 		return
+// 	}
+
+// 	// TRANSFER
+// 	amountTransferred := 90000.00
+// 	transferErr := transferMoney(account.AccountNumber, account2.AccountNumber, amountTransferred)
+// 	if transferErr != nil { // not empty
+// 		fmt.Println("Error: ", transferErr)
+// 		return
+// 	}
+
+// 	// ACCOUNT DETAILS
+// 	account, accDetailErr := viewAccountDetails(account2.AccountNumber)
+// 	if accDetailErr != nil {
+// 		fmt.Println("Error: ", accDetailErr)
+// 		return
+// 	}
+
+// 	// STATEMENT
+// 	accountStatementErr := generateStatement(account.AccountNumber)
+// 	if accountStatementErr != nil {
+// 		fmt.Println("Error: ", accountStatementErr)
+// 		return
+// 	}
+
+// 	// ACCOUNTS DISPLAY
+// 	displayAllAccounts()
+// }
