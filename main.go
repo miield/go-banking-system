@@ -75,7 +75,7 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 
 	// set the transaction struct
 	initialTxn := Transaction {
-		TransactionID: generateTransactionId(), // make it 16char alphanumeric ?????
+		TransactionID: generateTransactionId(),
 		Type:          "Deposit",
 		Amount:        initialDeposit,
 		Timestamp:     time.Now(),
@@ -89,9 +89,6 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 
 	// add transaction globally
 	transactionList = append(transactionList, initialTxn)
-
-	// fmt.Printf("Account created successfully: Name: %s, Account number: %d, Account balance: %.2f \n",
-	// 	newAccount.Name, newAccount.AccountNumber, newAccount.Balance)
 
 	return newAccount, nil
 }
