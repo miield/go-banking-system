@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -98,7 +101,7 @@ func generateTransactionId() string {
 	charSlice := make([]byte, 16)
 	seed := rand.NewSource(time.Now().UTC().UnixNano())
 	source := rand.New(seed)
-	for i := range charRange { 
+	for i := range charSlice { 
 		charSlice[i] = charRange[source.Intn(len(charRange))]
 	}
 	return string(charSlice)
@@ -237,16 +240,16 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 	return nil
 }
 
-func viewAccountDetails(accountNumber int64) (*Account, error) {
+func viewAccountDetails(accountNumber int64) error {
 	account, exists := accounts[accountNumber]
 	if !exists {
-		return nil, fmt.Errorf("Account number %d is either invalid or doesn't exist", accountNumber)
+		return fmt.Errorf("Account number %d is either invalid or doesn't exist", accountNumber)
 	}
 
 	// prints the struct fields with their names
-	fmt.Printf("Account Details: %+v \n", account)
+	fmt.Printf("Account Details: Name: %s, Account Number: %d, Balance: %.2f \n", account.Name, account.AccountNumber, account.Balance)
 
-	return account, nil
+	return nil
 }
 
 func generateStatement(filter FilterTransaction) error {
@@ -322,7 +325,15 @@ func main() {
 			var fullName string
 			var initialDeposit float64
 			fmt.Println("Enter your full name: ")
-			fmt.Scan(&fullName)
+			// fmt.Scanln(&fullName)
+			/** 
+				os.Stdin reads user input & bufio.NewReader buffers and 
+				allow efficient reading of the user text input
+			**/
+			reader := bufio.NewReader(os.Stdin)
+			fullName, _ = reader.ReadString('\n')
+			fullName = strings.TrimSpace(fullName)
+
 			fmt.Println("Enter the initial deposit: ")
 			fmt.Scan(&initialDeposit)
 
@@ -346,7 +357,7 @@ func main() {
 			_, depositErr := depositMoney(accountNumber, depositAmount)
 			if depositErr != nil {
 				fmt.Println("Error:", depositErr)
-				return
+				// return
 			}
 
         case 3:
@@ -360,7 +371,7 @@ func main() {
 			withdrawErr := withdrawMoney(accountNumber, amountWithdrawn)
 			if withdrawErr != nil {
 				fmt.Println("Error:", withdrawErr)
-				return
+				// return
 			}
 
         case 4:
@@ -377,7 +388,7 @@ func main() {
 			transferErr := transferMoney(receiverAccount, senderAccount, transferAmount)
 			if transferErr != nil { // not empty
 				fmt.Println("Error: ", transferErr)
-				return
+				// return
 			}
 
         case 5:
@@ -385,11 +396,10 @@ func main() {
 			fmt.Print("Enter account number: ")
 			fmt.Scan(&accountNumber)
 			
-			account, accDetailErr := viewAccountDetails(accountNumber)
+			accDetailErr := viewAccountDetails(accountNumber)
 			if accDetailErr != nil {
 				fmt.Println("Error:", accDetailErr)
-			} else {
-				fmt.Printf("Account Details: %+v\n", account)
+				// return
 			}
 
 		case 6:
@@ -408,13 +418,13 @@ func main() {
 			fromDate, err := time.Parse("O2-01-2006", fromDateStr)
 			if err != nil {
 				fmt.Println("Invalid start date format. Please use DD/MM/YYYY.")
-				return
+				// return
 			}
 		
 			toDate, err := time.Parse("O2-01-2006", toDateStr)
 			if err != nil {
 				fmt.Println("Invalid end date format. Please use DD/MM/YYYY.")
-				return
+				// return
 			}
 		
 			// Create the FilterTransaction instance
@@ -429,7 +439,7 @@ func main() {
 			err = generateStatement(filter)
 			if err != nil {
 				fmt.Printf("Error generating statement: %s\n", err)
-				return
+				// return
 			}
 		
 			fmt.Println("Statement generated successfully.")		
