@@ -249,15 +249,7 @@ func viewAccountDetails(accountNumber int64) error {
 	}
 
 	// prints the struct fields with their names
-	// fmt.Printf("Account Details: Name: %s, Account Number: %d, Balance: %.2f \n", account.Name, account.AccountNumber, account.Balance)
-
-	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
-	fmt.Println("--------------------------------------------------------------------")
-	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
-	for _, txn := range accountTransactions[accountNumber] {
-		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
-	}
-	fmt.Println("--------------------------------------------------------------------")
+	fmt.Printf("Account Details: Name: %s, Account Number: %d, Balance: %.2f \n", account.Name, account.AccountNumber, account.Balance)
 
 	return nil
 }
@@ -302,7 +294,7 @@ func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
 	filteredTransactions := []Transaction{}
 	for _, date := range filterDates {
 		for _, txn := range account.Transactions {
-			// Check if the transaction occurred on this date
+			// check if the transaction occurred on this date
 			if txn.Timestamp.Truncate(24 * time.Hour).Equal(date.Truncate(24 * time.Hour)) {
 				filteredTransactions = append(filteredTransactions, txn)
 			}
