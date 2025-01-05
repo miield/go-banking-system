@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -12,6 +15,7 @@ type Account struct {
 	Name          string
 	Balance       float64
 	Transactions  []Transaction
+	CreationDate time.Time
 }
 
 type Transaction struct {
@@ -66,6 +70,7 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 		Name:          accountName,
 		Balance:       initialDeposit,
 		Transactions:  []Transaction{},
+		CreationDate:  time.Now(),
 	}
 
 	// save in maps pointing to the memory location of the new accounts
@@ -98,7 +103,7 @@ func generateTransactionId() string {
 	charSlice := make([]byte, 16)
 	seed := rand.NewSource(time.Now().UTC().UnixNano())
 	source := rand.New(seed)
-	for i := range charRange { 
+	for i := range charSlice { 
 		charSlice[i] = charRange[source.Intn(len(charRange))]
 	}
 	return string(charSlice)
@@ -237,34 +242,39 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 	return nil
 }
 
-func viewAccountDetails(accountNumber int64) (*Account, error) {
+func viewAccountDetails(accountNumber int64) error {
 	account, exists := accounts[accountNumber]
 	if !exists {
-		return nil, fmt.Errorf("Account number %d is either invalid or doesn't exist", accountNumber)
+		return fmt.Errorf("Account number %d is either invalid or doesn't exist", accountNumber)
 	}
 
 	// prints the struct fields with their names
-	fmt.Printf("Account Details: %+v \n", account)
+	// fmt.Printf("Account Details: Name: %s, Account Number: %d, Balance: %.2f \n", account.Name, account.AccountNumber, account.Balance)
 
-	return account, nil
+	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
+	fmt.Println("--------------------------------------------------------------------")
+	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
+	for _, txn := range accountTransactions[accountNumber] {
+		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
+	}
+	fmt.Println("--------------------------------------------------------------------")
+
+	return nil
 }
 
 func generateStatement(filter FilterTransaction) error {
-	account, exists := accounts[filter.accountNumber]
-	if !exists {
-		return fmt.Errorf("Account number %d is either invalid or doesn't exist", filter.accountNumber)
-	}
-
 	// filter transactions by date range
 	filteredTransactions, err := filterTransactions(filter)
 	if err != nil {
 		return err
 	}
 
+	account := accounts[filter.accountNumber]
+
 	// formatting the output
 	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
 	fmt.Println("--------------------------------------------------------------------")
-	fmt.Println("Transaction ID | Type     | Amount     | Timestamp")
+	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
 	for _, txn := range filteredTransactions {
 		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
 	}
@@ -274,27 +284,47 @@ func generateStatement(filter FilterTransaction) error {
 }
 
 func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
-	account, exists := accounts[filter.accountNumber]
-	if !exists {
-		return nil, fmt.Errorf("account number %d is either invalid or doesn't exist", filter.accountNumber)
-	}
+    account, exists := accounts[filter.accountNumber]
+    if !exists {
+        return nil, fmt.Errorf("account number %d is either invalid or doesn't exist", filter.accountNumber)
+    }
 
-	// slice container for the filtered transaction 
-	filteredTransactions := []Transaction {}
+	// filter date
+	filterDates := []time.Time{}
+	current := filter.fromDate
 
-	// txn is an instance of Transaction struct of account
-	for _, txn := range account.Transactions {
-		if txn.Timestamp.Equal(filter.fromDate) || txn.Timestamp.Equal(filter.toDate) || 
-		txn.Timestamp.After(filter.fromDate) && txn.Timestamp.Before(filter.toDate) {
-			filteredTransactions = append(filteredTransactions, txn)
+    for !current.After(filter.toDate) { // if the current date is not after toDate
+        filterDates = append(filterDates, current)
+        current = current.AddDate(0, 0, 1) // Increment by one day
+    }
+
+    // Filter transactions
+	filteredTransactions := []Transaction{}
+	for _, date := range filterDates {
+		for _, txn := range account.Transactions {
+			// Check if the transaction occurred on this date
+			if txn.Timestamp.Truncate(24 * time.Hour).Equal(date.Truncate(24 * time.Hour)) {
+				filteredTransactions = append(filteredTransactions, txn)
+			}
 		}
 	}
-
+	
+	// return the filtered transactions or an error if nothing is found
 	if len(filteredTransactions) == 0 {
-		return nil, fmt.Errorf("no transactions found for Account %d within the specified range", filter.accountNumber)
+		return nil, fmt.Errorf("no transactions found for the specified range")
 	}
-
+	
 	return filteredTransactions, nil
+}
+
+
+func parseDate(input string) (time.Time, error) {
+    layout := "02/01/2006" // DD/MM/YYYY
+    parsedDate, err := time.Parse(layout, input)
+    if err != nil {
+        return time.Time{}, fmt.Errorf("invalid date format. Please use DD/MM/YYYY")
+    }
+    return parsedDate, nil
 }
 
 func displayAllAccounts() {
@@ -322,7 +352,15 @@ func main() {
 			var fullName string
 			var initialDeposit float64
 			fmt.Println("Enter your full name: ")
-			fmt.Scan(&fullName)
+			// fmt.Scanln(&fullName)
+			/** 
+				os.Stdin reads user input & bufio.NewReader buffers and 
+				allow efficient reading of the user text input
+			**/
+			reader := bufio.NewReader(os.Stdin)
+			fullName, _ = reader.ReadString('\n')
+			fullName = strings.TrimSpace(fullName)
+
 			fmt.Println("Enter the initial deposit: ")
 			fmt.Scan(&initialDeposit)
 
@@ -346,7 +384,7 @@ func main() {
 			_, depositErr := depositMoney(accountNumber, depositAmount)
 			if depositErr != nil {
 				fmt.Println("Error:", depositErr)
-				return
+				// return
 			}
 
         case 3:
@@ -360,7 +398,7 @@ func main() {
 			withdrawErr := withdrawMoney(accountNumber, amountWithdrawn)
 			if withdrawErr != nil {
 				fmt.Println("Error:", withdrawErr)
-				return
+				// return
 			}
 
         case 4:
@@ -377,7 +415,7 @@ func main() {
 			transferErr := transferMoney(receiverAccount, senderAccount, transferAmount)
 			if transferErr != nil { // not empty
 				fmt.Println("Error: ", transferErr)
-				return
+				// return
 			}
 
         case 5:
@@ -385,54 +423,52 @@ func main() {
 			fmt.Print("Enter account number: ")
 			fmt.Scan(&accountNumber)
 			
-			account, accDetailErr := viewAccountDetails(accountNumber)
+			accDetailErr := viewAccountDetails(accountNumber)
 			if accDetailErr != nil {
 				fmt.Println("Error:", accDetailErr)
-			} else {
-				fmt.Printf("Account Details: %+v\n", account)
+				// return
 			}
 
 		case 6:
 			var accountNumber int64
 			fmt.Print("Enter account number: ")
 			fmt.Scan(&accountNumber)
-
-			// prompt the user for filtering info
-			var fromDateStr, toDateStr string
-			fmt.Print("Enter start date (DD/MM/YYYY): ")
-			fmt.Scan(&fromDateStr)
-			fmt.Print("Enter end date (DD/MM/YYYY): ")
-			fmt.Scan(&toDateStr)
 		
-			// check the dates and
-			fromDate, err := time.Parse("O2-01-2006", fromDateStr)
+			// prompt the user for filtering info
+			fmt.Print("Enter start date (DD/MM/YYYY): ")
+			reader := bufio.NewReader(os.Stdin)
+			fromDateInput, _ := reader.ReadString('\n')
+			fromDate, err := parseDate(strings.TrimSpace(fromDateInput))
 			if err != nil {
 				fmt.Println("Invalid start date format. Please use DD/MM/YYYY.")
-				return
+				// return
 			}
 		
-			toDate, err := time.Parse("O2-01-2006", toDateStr)
+			fmt.Print("Enter end date (DD/MM/YYYY): ")
+			toDateInput, _ := reader.ReadString('\n')
+			toDate, err := parseDate(strings.TrimSpace(toDateInput))
 			if err != nil {
 				fmt.Println("Invalid end date format. Please use DD/MM/YYYY.")
-				return
+				// return
 			}
 		
 			// Create the FilterTransaction instance
 			filter := FilterTransaction{
-				accountNumber: accountNumber,
+				accountNumber:   accountNumber,
 				transactionType: "", // empty means all types
-				fromDate: fromDate,
-				toDate: toDate,
+				fromDate:        fromDate,
+				toDate:          toDate,
 			}
 		
 			// Call generateStatement with the filter
 			err = generateStatement(filter)
 			if err != nil {
 				fmt.Printf("Error generating statement: %s\n", err)
-				return
+				// return
 			}
 		
-			fmt.Println("Statement generated successfully.")		
+			fmt.Println("Statement generated successfully.")
+				
 
         case 7:
             displayAllAccounts()
