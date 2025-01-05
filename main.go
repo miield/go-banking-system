@@ -249,7 +249,15 @@ func viewAccountDetails(accountNumber int64) error {
 	}
 
 	// prints the struct fields with their names
-	fmt.Printf("Account Details: Name: %s, Account Number: %d, Balance: %.2f \n", account.Name, account.AccountNumber, account.Balance)
+	// fmt.Printf("Account Details: Name: %s, Account Number: %d, Balance: %.2f \n", account.Name, account.AccountNumber, account.Balance)
+
+	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
+	fmt.Println("--------------------------------------------------------------------")
+	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
+	for _, txn := range accountTransactions[accountNumber] {
+		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
+	}
+	fmt.Println("--------------------------------------------------------------------")
 
 	return nil
 }
@@ -266,7 +274,7 @@ func generateStatement(filter FilterTransaction) error {
 	// formatting the output
 	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
 	fmt.Println("--------------------------------------------------------------------")
-	fmt.Println("Transaction ID | Type     | Amount     | Timestamp")
+	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
 	for _, txn := range filteredTransactions {
 		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
 	}
@@ -281,39 +289,32 @@ func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
         return nil, fmt.Errorf("account number %d is either invalid or doesn't exist", filter.accountNumber)
     }
 
-    // Adjust fromDate if it's earlier than the account creation date
-    if filter.fromDate.Before(account.CreationDate) {
-        fmt.Printf("Warning: The account was created on %s. Adjusting the start date to match account creation date.\n", 
-            account.CreationDate.Format("02/01/2006"))
-        filter.fromDate = account.CreationDate
+	// filter date
+	filterDates := []time.Time{}
+	current := filter.fromDate
+
+    for !current.After(filter.toDate) { // if the current date is not after toDate
+        filterDates = append(filterDates, current)
+        current = current.AddDate(0, 0, 1) // Increment by one day
     }
 
     // Filter transactions
-    filteredTransactions := []Transaction{}
-	if filter.fromDate.Equal(filter.toDate) {
+	filteredTransactions := []Transaction{}
+	for _, date := range filterDates {
 		for _, txn := range account.Transactions {
-			if txn.Timestamp.Equal(filter.fromDate) {
-				filteredTransactions = append(filteredTransactions, txn)
-			}
-		}
-	} else {
-		for _, txn := range account.Transactions {
-			if  (txn.Timestamp.Equal(filter.fromDate) || txn.Timestamp.Equal(filter.toDate)) || 
-			    (txn.Timestamp.After(filter.fromDate) && txn.Timestamp.Before(filter.toDate)) {
+			// Check if the transaction occurred on this date
+			if txn.Timestamp.Truncate(24 * time.Hour).Equal(date.Truncate(24 * time.Hour)) {
 				filteredTransactions = append(filteredTransactions, txn)
 			}
 		}
 	}
 	
-
-    if len(filteredTransactions) == 0 {
-        return nil, fmt.Errorf("no transactions found for Account %d within the specified range (%s to %s)", 
-            filter.accountNumber, 
-            filter.fromDate.Format("02/01/2006"), 
-            filter.toDate.Format("02/01/2006"))
-    }
-
-    return filteredTransactions, nil
+	// return the filtered transactions or an error if nothing is found
+	if len(filteredTransactions) == 0 {
+		return nil, fmt.Errorf("no transactions found for the specified range")
+	}
+	
+	return filteredTransactions, nil
 }
 
 
