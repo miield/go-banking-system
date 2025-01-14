@@ -8,10 +8,7 @@ import (
 	"os"
 	"strings"
 	"time"
-	"github.com/xuri/excelize/v2"
-	"strconv"
 	"encoding/json"
-	"io/ioutil"
 )
 
 type Account struct {
@@ -47,13 +44,21 @@ var transactionList = []Transaction{}
 
 var accountTransactions = make(map[int64] []Transaction)
 
-const accountFile = "accounts.json"
+// json file to store the accounts
+const accountsFile = "accounts.json"
+
+// json file to store the transactions
+const transactionsFile = "transactions.json"
 
 /*  the value(*Account) of the map is a pointer, pointing to the newAccount
 is the memory storage of every newly created account, as a reference.
 */
 
 func createAccount(accountName string, initialDeposit float64) (*Account, error) {
+	// load the updated data
+	if err := readFromJson(accountsFile, &accounts); err != nil {
+		return nil, fmt.Errorf("failed to load accounts: %s", err)
+	}
 
 	// checks for name == ""
 	if accountName == "" {
@@ -68,7 +73,14 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	// generate the random account number
 	seed := rand.NewSource(time.Now().UTC().UnixNano())
 	source := rand.New(seed)
-	accountNumber := source.Int63n(999999999) + 1000000000
+	var accountNumber int64
+	for {
+		accountNumber = source.Int63n(999999999) + 1000000000
+		if _, exists := accounts[accountNumber]; !exists {
+			break
+		}
+	}
+	
 
 	// create new account number
 	newAccount := &Account {
@@ -101,7 +113,34 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	// add transaction globally
 	transactionList = append(transactionList, initialTxn)
 
+	// write the new account to the json file
+	err := writeToJson(accountsFile, accounts) 
+	if err != nil {
+		return nil, fmt.Errorf("failed to save account: %s", err)
+	}
+
 	return newAccount, nil
+}
+
+func writeToJson(filename string, data interface{}) error {
+	// converts the data to json format
+	file, err := json.MarshalIndent(data, "", " ")
+	if err != nil {
+		return err
+	}
+
+	// return the file(data) in the filename and permission to 
+	// r&w by the author and read-only by the user 0644
+	return os.WriteFile(filename, file, 0644)
+}
+
+func readFromJson(filename string, dest interface{}) error {
+	file, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	// convert and return the Json data into golang data structure
+	return json.Unmarshal(file, dest)
 }
 
 func generateTransactionId() string {
@@ -260,79 +299,25 @@ func viewAccountDetails(accountNumber int64) error {
 	return nil
 }
 
-// func generateStatement(filter FilterTransaction) error {
-// 	// filter transactions by date range
-// 	filteredTransactions, err := filterTransactions(filter)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	account := accounts[filter.accountNumber]
-
-// 	// formatting the output
-// 	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
-// 	fmt.Println("--------------------------------------------------------------------")
-// 	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
-// 	for _, txn := range filteredTransactions {
-// 		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
-// 	}
-// 	fmt.Println("--------------------------------------------------------------------")
-
-// 	return nil
-// }
-
-func generateStatementAsExcel(filter FilterTransaction) error {
+func generateStatement(filter FilterTransaction) error {
+	// filter transactions by date range
 	filteredTransactions, err := filterTransactions(filter)
 	if err != nil {
 		return err
 	}
 
 	account := accounts[filter.accountNumber]
-	file := excelize.NewFile()
-	sheet := "Statement"
-	file.NewSheet(sheet)
 
-	// Header
-	file.SetCellValue(sheet, "A1", "Transaction ID")
-	file.SetCellValue(sheet, "B1", "Type")
-	file.SetCellValue(sheet, "C1", "Amount")
-	file.SetCellValue(sheet, "D1", "Timestamp")
-
-	// Populate rows
-	for i, txn := range filteredTransactions {
-		row := strconv.Itoa(i + 2)
-		file.SetCellValue(sheet, "A"+row, txn.TransactionID)
-		file.SetCellValue(sheet, "B"+row, txn.Type)
-		file.SetCellValue(sheet, "C"+row, txn.Amount)
-		file.SetCellValue(sheet, "D"+row, txn.Timestamp.Format("2006-01-02 15:04:05"))
+	// formatting the output
+	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
+	fmt.Println("--------------------------------------------------------------------")
+	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
+	for _, txn := range filteredTransactions {
+		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
 	}
+	fmt.Println("--------------------------------------------------------------------")
 
-	// Save file
-	filename := fmt.Sprintf("Statement_Account_%d.xlsx", account.AccountNumber)
-	if err := file.SaveAs(filename); err != nil {
-		return fmt.Errorf("failed to save Excel file: %s", err)
-	}
-
-	fmt.Printf("Bank statement saved as %s\n", filename)
 	return nil
-}
-
-// Save accounts to a JSON file
-func saveAccounts() error {
-	data, err := json.MarshalIndent(accounts, "", "  ")
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(accountFile, data, 0644)
-}
-
-// Load accounts from a JSON file
-func loadAccounts() error {
-	data, err := ioutil.ReadFile(accountFile)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, &accounts)
 }
 
 func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
