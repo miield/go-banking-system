@@ -56,7 +56,8 @@ is the memory storage of every newly created account, as a reference.
 
 func createAccount(accountName string, initialDeposit float64) (*Account, error) {
 	// load the updated data
-	if err := readFromJson(accountsFile, &accounts); err != nil {
+	if err := readFromJson(accountsFile, &accounts) 
+	err != nil {
 		return nil, fmt.Errorf("failed to load accounts: %s", err)
 	}
 
@@ -155,6 +156,12 @@ func generateTransactionId() string {
 }
 
 func depositMoney(accountNumber int64, amount float64) (*Account, error) {
+	// load the updated data
+	if err := readFromJson(accountsFile, &accounts)
+	err != nil {
+		return nil, fmt.Errorf("failed to load accounts: %s", err)
+	}
+
 	// check for the account existence
 	if _, exists := accounts[accountNumber]; !exists {
 		return nil, fmt.Errorf("account number %d doesn't exist", accountNumber)
@@ -188,10 +195,21 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 
 	fmt.Printf("Deposit of %.2f into account %d is successful \n", amount, accountNumber)
 
+	// update the file with the new transaction
+	err := writeToJson(accountsFile, accounts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save deposit transaction: %s", err)
+	}
 	return account, nil
 }
 
 func withdrawMoney(accountNumber int64, amount float64) error {
+	// load the updated file
+	if err := readFromJson(accountsFile, &accounts)
+	err != nil {
+		return fmt.Errorf("failed to load the file: %s", err)
+	}
+
 	// Validate account existence
 	if _, exists := accounts[accountNumber]; !exists {
 		return fmt.Errorf("Account number %d doesn't exist", accountNumber)
@@ -227,10 +245,22 @@ func withdrawMoney(accountNumber int64, amount float64) error {
 	// Confirm withdrawal
 	fmt.Printf("Withdrawal of %.2f from account %d is successful. \n", amount, accountNumber)
 
+	// update the file with the withdrawal transaction
+	err := writeToJson(accountsFile, accounts) 
+	if err != nil {
+		return fmt.Errorf("failed to save withdrawal transaction: %s", err)
+	}
+
 	return nil
 }
 
 func transferMoney(sender int64, receiver int64, amount float64) error {
+	// load the updated account file
+	if err := readFromJson(accountsFile, &accounts)
+	err != nil {
+		return fmt.Errorf("failed to load accounts: %s", err)
+	}
+
 	// Validate sender and receiver accounts
 	if _, exists := accounts[sender]; !exists {
 		return fmt.Errorf("account number %d doesn't exist", sender)
@@ -284,6 +314,11 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 
 	// Confirm transfer
 	fmt.Printf("Transfer of %.2f from account %d to account %d is successful \n", amount, sender, receiver)
+	// update the file with the new transaction
+	err := writeToJson(accountsFile, accounts)
+	if err != nil {
+		return fmt.Errorf("failed to save transfer transaction: %s", err)
+	}
 	return nil
 }
 
