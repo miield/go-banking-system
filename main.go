@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	"encoding/json"
+	"github.com/xuri/excelize/v2"
+
 )
 
 type Account struct {
@@ -334,6 +336,27 @@ func viewAccountDetails(accountNumber int64) error {
 	return nil
 }
 
+// func generateStatement(filter FilterTransaction) error {
+// 	// filter transactions by date range
+// 	filteredTransactions, err := filterTransactions(filter)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	account := accounts[filter.accountNumber]
+
+// 	// formatting the output
+// 	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
+// 	fmt.Println("--------------------------------------------------------------------")
+// 	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
+// 	for _, txn := range filteredTransactions {
+// 		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
+// 	}
+// 	fmt.Println("--------------------------------------------------------------------")
+
+// 	return nil
+// }
+
 func generateStatement(filter FilterTransaction) error {
 	// filter transactions by date range
 	filteredTransactions, err := filterTransactions(filter)
@@ -341,17 +364,51 @@ func generateStatement(filter FilterTransaction) error {
 		return err
 	}
 
-	account := accounts[filter.accountNumber]
-
-	// formatting the output
-	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
-	fmt.Println("--------------------------------------------------------------------")
-	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
-	for _, txn := range filteredTransactions {
-		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
+	// Retrieve account details for inclusion in the statement
+	account, exists := accounts[filter.accountNumber]
+	if !exists {
+		return fmt.Errorf("account number %d is invalid or doesn't exist", filter.accountNumber)
 	}
-	fmt.Println("--------------------------------------------------------------------")
 
+	// Create an Excel file
+	statementExcelFile := excelize.NewFile()
+
+	// Add account details as headers
+	statementExcelFile.SetCellValue("Sheet1", "A1", "Account Name:")
+	statementExcelFile.SetCellValue("Sheet1", "B1", account.Name)
+	statementExcelFile.SetCellValue("Sheet1", "A2", "Account Number:")
+	statementExcelFile.SetCellValue("Sheet1", "B2", account.AccountNumber)
+	statementExcelFile.SetCellValue("Sheet1", "A3", "Balance:")
+	statementExcelFile.SetCellValue("Sheet1", "B3", fmt.Sprintf("%.2f", account.Balance))
+	statementExcelFile.SetCellValue("Sheet1", "A4", "Creation Date:")
+	statementExcelFile.SetCellValue("Sheet1", "B4", account.CreationDate.Format("02-Jan-2006"))
+
+	// Leave an empty row before transactions
+	startRow := 6
+
+	// Set headers for transactions
+	headers := []string{"Transaction ID", "Type", "Amount", "Timestamp"}
+	for i, header := range headers {
+		col := string('A' + i) // Columns: A, B, C...
+		statementExcelFile.SetCellValue("Sheet1", fmt.Sprintf("%s%d", col, startRow), header)
+	}
+
+	// Add transactions to rows
+	for i, txn := range filteredTransactions {
+		row := startRow + 1 + i
+		statementExcelFile.SetCellValue("Sheet1", "A"+fmt.Sprint(row), txn.TransactionID)
+		statementExcelFile.SetCellValue("Sheet1", "B"+fmt.Sprint(row), txn.Type)
+		statementExcelFile.SetCellValue("Sheet1", "C"+fmt.Sprint(row), txn.Amount)
+		statementExcelFile.SetCellValue("Sheet1", "D"+fmt.Sprint(row), txn.Timestamp.Format("02-Jan-2006 15:04:05"))
+	}
+
+	// Save the Excel file
+	filename := fmt.Sprintf("statement_%d.xlsx", filter.accountNumber)
+	if err := statementExcelFile.SaveAs(filename); err != nil {
+		return fmt.Errorf("failed to save statement: %s", err)
+	}
+
+	fmt.Printf("Statement saved as %s\n", filename)
 	return nil
 }
 
