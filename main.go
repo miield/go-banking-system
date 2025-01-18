@@ -8,6 +8,9 @@ import (
 	"os"
 	"strings"
 	"time"
+	"encoding/json"
+	"github.com/xuri/excelize/v2"
+
 )
 
 type Account struct {
@@ -43,11 +46,37 @@ var transactionList = []Transaction{}
 
 var accountTransactions = make(map[int64] []Transaction)
 
+// json file to store the accounts
+const accountsFile = "accounts.json"
+
+// json file to store the transactions
+const transactionsFile = "transactions.json"
+
+func initializeFiles() {
+    ensureFileExists(accountsFile, "{}")         // create object for accounts
+    ensureFileExists(transactionsFile, "[]")    // create array for transactions
+}
+
+func ensureFileExists(filename, defaultContent string) { // defaultContent = data structure of the file
+    if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+        err := os.WriteFile(filename, []byte(defaultContent), 0644)
+        if err != nil {
+            fmt.Printf("Error creating file %s: %s\n", filename, err)
+        } else {
+            fmt.Printf("File initiated successfully %s with default content\n", filename)
+        }
+    }
+}
+
 /*  the value(*Account) of the map is a pointer, pointing to the newAccount
 is the memory storage of every newly created account, as a reference.
 */
 
 func createAccount(accountName string, initialDeposit float64) (*Account, error) {
+	// load the updated data
+	if err := readFromJson(accountsFile, &accounts); err != nil {
+		return nil, fmt.Errorf("failed to load accounts: %s", err)
+	}
 
 	// checks for name == ""
 	if accountName == "" {
@@ -62,8 +91,14 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	// generate the random account number
 	seed := rand.NewSource(time.Now().UTC().UnixNano())
 	source := rand.New(seed)
-	accountNumber := source.Int63n(999999999) + 1000000000
-
+	var accountNumber int64
+	for {
+		accountNumber = source.Int63n(999999999) + 1000000000
+		if _, exists := accounts[accountNumber]; !exists {
+			break
+		}
+	}
+	
 	// create new account number
 	newAccount := &Account {
 		AccountNumber: accountNumber,
@@ -95,7 +130,38 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	// add transaction globally
 	transactionList = append(transactionList, initialTxn)
 
+	// write the new account to the json file
+	err := writeToJson(accountsFile, accounts) 
+	if err != nil {
+		return nil, fmt.Errorf("failed to save account: %s", err)
+	}
+
+	if err := writeToJson(transactionsFile, transactionList); err != nil {
+        return nil, fmt.Errorf("failed to save transactions: %s", err)
+    }
+
 	return newAccount, nil
+}
+
+func writeToJson(filename string, data interface{}) error {
+	// converts the data to json format
+	file, err := json.MarshalIndent(data, "", " ")
+	if err != nil {
+		return err
+	}
+
+	// return the file(data) in the filename and permission to 
+	// r&w by the author and read-only by the user 0644
+	return os.WriteFile(filename, file, 0644)
+}
+
+func readFromJson(filename string, dest interface{}) error {
+	file, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	// convert and return the Json data into golang data structure
+	return json.Unmarshal(file, dest)
 }
 
 func generateTransactionId() string {
@@ -110,6 +176,11 @@ func generateTransactionId() string {
 }
 
 func depositMoney(accountNumber int64, amount float64) (*Account, error) {
+	// load the updated data
+	if err := readFromJson(accountsFile, &accounts); err != nil {
+		return nil, fmt.Errorf("failed to load accounts: %s", err)
+	}
+
 	// check for the account existence
 	if _, exists := accounts[accountNumber]; !exists {
 		return nil, fmt.Errorf("account number %d doesn't exist", accountNumber)
@@ -143,10 +214,21 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 
 	fmt.Printf("Deposit of %.2f into account %d is successful \n", amount, accountNumber)
 
+	// update the file with the new transaction
+	err := writeToJson(accountsFile, accounts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save deposit transaction: %s", err)
+	}
 	return account, nil
 }
 
 func withdrawMoney(accountNumber int64, amount float64) error {
+	// load the updated file
+	if err := readFromJson(accountsFile, &accounts)
+	err != nil {
+		return fmt.Errorf("failed to load the file: %s", err)
+	}
+
 	// Validate account existence
 	if _, exists := accounts[accountNumber]; !exists {
 		return fmt.Errorf("Account number %d doesn't exist", accountNumber)
@@ -182,10 +264,22 @@ func withdrawMoney(accountNumber int64, amount float64) error {
 	// Confirm withdrawal
 	fmt.Printf("Withdrawal of %.2f from account %d is successful. \n", amount, accountNumber)
 
+	// update the file with the withdrawal transaction
+	err := writeToJson(accountsFile, accounts) 
+	if err != nil {
+		return fmt.Errorf("failed to save withdrawal transaction: %s", err)
+	}
+
 	return nil
 }
 
 func transferMoney(sender int64, receiver int64, amount float64) error {
+	// load the updated account file
+	if err := readFromJson(accountsFile, &accounts)
+	err != nil {
+		return fmt.Errorf("failed to load accounts: %s", err)
+	}
+
 	// Validate sender and receiver accounts
 	if _, exists := accounts[sender]; !exists {
 		return fmt.Errorf("account number %d doesn't exist", sender)
@@ -239,6 +333,11 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 
 	// Confirm transfer
 	fmt.Printf("Transfer of %.2f from account %d to account %d is successful \n", amount, sender, receiver)
+	// update the file with the new transaction
+	err := writeToJson(accountsFile, accounts)
+	if err != nil {
+		return fmt.Errorf("failed to save transfer transaction: %s", err)
+	}
 	return nil
 }
 
@@ -261,17 +360,51 @@ func generateStatement(filter FilterTransaction) error {
 		return err
 	}
 
-	account := accounts[filter.accountNumber]
-
-	// formatting the output
-	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
-	fmt.Println("--------------------------------------------------------------------")
-	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
-	for _, txn := range filteredTransactions {
-		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
+	// Retrieve account details for inclusion in the statement
+	account, exists := accounts[filter.accountNumber]
+	if !exists {
+		return fmt.Errorf("account number %d is invalid or doesn't exist", filter.accountNumber)
 	}
-	fmt.Println("--------------------------------------------------------------------")
 
+	// Create an Excel file variable
+	statementExcelFile := excelize.NewFile()
+
+	// Add account details as headers
+	statementExcelFile.SetCellValue("Sheet1", "A1", "Account Name:")
+	statementExcelFile.SetCellValue("Sheet1", "B1", account.Name)
+	statementExcelFile.SetCellValue("Sheet1", "A2", "Account Number:")
+	statementExcelFile.SetCellValue("Sheet1", "B2", account.AccountNumber)
+	statementExcelFile.SetCellValue("Sheet1", "A3", "Balance:")
+	statementExcelFile.SetCellValue("Sheet1", "B3", fmt.Sprintf("%.2f", account.Balance))
+	statementExcelFile.SetCellValue("Sheet1", "A4", "Creation Date:")
+	statementExcelFile.SetCellValue("Sheet1", "B4", account.CreationDate.Format("02-Jan-2006"))
+
+	// leave an empty row before transactions
+	startRow := 6
+
+	// set headers for transactions
+	headers := []string{"Transaction ID", "Type", "Amount", "Timestamp"}
+	for i, header := range headers {
+		column := string('A' + i) // Columns: A, B, C...
+		statementExcelFile.SetCellValue("Sheet1", fmt.Sprintf("%s%d", column, startRow), header)
+	}
+
+	// add transactions to rows
+	for i, txn := range filteredTransactions {
+		row := startRow + 1 + i
+		statementExcelFile.SetCellValue("Sheet1", "A"+fmt.Sprint(row), txn.TransactionID)
+		statementExcelFile.SetCellValue("Sheet1", "B"+fmt.Sprint(row), txn.Type)
+		statementExcelFile.SetCellValue("Sheet1", "C"+fmt.Sprint(row), txn.Amount)
+		statementExcelFile.SetCellValue("Sheet1", "D"+fmt.Sprint(row), txn.Timestamp.Format("02-Jan-2006 15:04:05"))
+	}
+
+	// save the Excel file with the account number
+	filename := fmt.Sprintf("statement_%d.xlsx", filter.accountNumber)
+	if err := statementExcelFile.SaveAs(filename); err != nil {
+		return fmt.Errorf("failed to save statement: %s", err)
+	}
+
+	fmt.Printf("Statement saved as %s\n", filename)
 	return nil
 }
 
@@ -290,13 +423,13 @@ func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
         current = current.AddDate(0, 0, 1) // Increment by one day
     }
 
-    // Filter transactions
+    // filter transactions
 	filteredTransactions := []Transaction{}
 	for _, date := range filterDates {
 		for _, txn := range account.Transactions {
 			// check if the transaction occurred on this date
 			if txn.Timestamp.Truncate(24 * time.Hour).Equal(date.Truncate(24 * time.Hour)) {
-				filteredTransactions = append(filteredTransactions, txn)
+					filteredTransactions = append(filteredTransactions, txn)
 			}
 		}
 	}
@@ -305,6 +438,10 @@ func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
 	if len(filteredTransactions) == 0 {
 		return nil, fmt.Errorf("no transactions found for the specified range")
 	}
+
+	// debug
+	fmt.Printf("Filtering transactions for account %d from %s to %s\n", filter.accountNumber, filter.fromDate, filter.toDate)
+    fmt.Printf("Filtered Transactions: %+v\n", filteredTransactions)
 	
 	return filteredTransactions, nil
 }
@@ -326,6 +463,9 @@ func displayAllAccounts() {
 }
 
 func main() {
+
+	initializeFiles()
+
 	for {
         fmt.Println("\n=== Banking System ===")
         fmt.Println("1. Create Account")
@@ -344,7 +484,6 @@ func main() {
 			var fullName string
 			var initialDeposit float64
 			fmt.Println("Enter your full name: ")
-			// fmt.Scanln(&fullName)
 			/** 
 				os.Stdin reads user input & bufio.NewReader buffers and 
 				allow efficient reading of the user text input
@@ -377,7 +516,7 @@ func main() {
 			if depositErr != nil {
 				fmt.Println("Error:", depositErr)
 				// return
-			}
+			} 
 
         case 3:
 			var accountNumber int64
@@ -421,46 +560,39 @@ func main() {
 				// return
 			}
 
-		case 6:
+        case 6:
 			var accountNumber int64
+			var fromDateStr, toDateStr, transactionType string
+		
 			fmt.Print("Enter account number: ")
 			fmt.Scan(&accountNumber)
-		
-			// prompt the user for filtering info
 			fmt.Print("Enter start date (DD/MM/YYYY): ")
-			reader := bufio.NewReader(os.Stdin)
-			fromDateInput, _ := reader.ReadString('\n')
-			fromDate, err := parseDate(strings.TrimSpace(fromDateInput))
-			if err != nil {
-				fmt.Println("Invalid start date format. Please use DD/MM/YYYY.")
-				// return
-			}
-		
+			fmt.Scan(&fromDateStr)
 			fmt.Print("Enter end date (DD/MM/YYYY): ")
-			toDateInput, _ := reader.ReadString('\n')
-			toDate, err := parseDate(strings.TrimSpace(toDateInput))
+			fmt.Scan(&toDateStr)
+		
+			fromDate, err := parseDate(fromDateStr)
 			if err != nil {
-				fmt.Println("Invalid end date format. Please use DD/MM/YYYY.")
+				fmt.Printf("Error parsing start date: %s\n", err)
 				// return
 			}
 		
-			// Create the FilterTransaction instance
+			toDate, err := parseDate(toDateStr)
+			if err != nil {
+				fmt.Printf("Error parsing end date: %s\n", err)
+				// return
+			}
+		
 			filter := FilterTransaction{
 				accountNumber:   accountNumber,
-				transactionType: "", // empty means all types
+				transactionType: transactionType,
 				fromDate:        fromDate,
 				toDate:          toDate,
 			}
 		
-			// Call generateStatement with the filter
-			err = generateStatement(filter)
-			if err != nil {
+			if err := generateStatement(filter); err != nil {
 				fmt.Printf("Error generating statement: %s\n", err)
-				// return
 			}
-		
-			fmt.Println("Statement generated successfully.")
-				
 
         case 7:
             displayAllAccounts()
