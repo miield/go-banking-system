@@ -353,27 +353,6 @@ func viewAccountDetails(accountNumber int64) error {
 	return nil
 }
 
-// func generateStatement(filter FilterTransaction) error {
-// 	// filter transactions by date range
-// 	filteredTransactions, err := filterTransactions(filter)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	account := accounts[filter.accountNumber]
-
-// 	// formatting the output
-// 	fmt.Printf("Statement for Account: %s (Account Number: %d)\n", account.Name, account.AccountNumber)
-// 	fmt.Println("--------------------------------------------------------------------")
-// 	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
-// 	for _, txn := range filteredTransactions {
-// 		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("02-01-2006 15:04:05"))
-// 	}
-// 	fmt.Println("--------------------------------------------------------------------")
-
-// 	return nil
-// }
-
 func generateStatement(filter FilterTransaction) error {
 	// filter transactions by date range
 	filteredTransactions, err := filterTransactions(filter)
@@ -410,7 +389,7 @@ func generateStatement(filter FilterTransaction) error {
 		statementExcelFile.SetCellValue("Sheet1", fmt.Sprintf("%s%d", column, startRow), header)
 	}
 
-	// Add transactions to rows
+	// add transactions to rows
 	for i, txn := range filteredTransactions {
 		row := startRow + 1 + i
 		statementExcelFile.SetCellValue("Sheet1", "A"+fmt.Sprint(row), txn.TransactionID)
@@ -444,7 +423,7 @@ func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
         current = current.AddDate(0, 0, 1) // Increment by one day
     }
 
-    // Filter transactions
+    // filter transactions
 	filteredTransactions := []Transaction{}
 	for _, date := range filterDates {
 		for _, txn := range account.Transactions {
@@ -505,7 +484,6 @@ func main() {
 			var fullName string
 			var initialDeposit float64
 			fmt.Println("Enter your full name: ")
-			// fmt.Scanln(&fullName)
 			/** 
 				os.Stdin reads user input & bufio.NewReader buffers and 
 				allow efficient reading of the user text input
@@ -588,12 +566,6 @@ func main() {
 		
 			fmt.Print("Enter account number: ")
 			fmt.Scan(&accountNumber)
-			// fmt.Print("Enter transaction type, or leave blank): ")
-			// fmt.Scan(&transactionType)
-			// // Default or no filter
-			// if transactionType == "" {
-			// 	transactionType = "" 
-			// }1
 			fmt.Print("Enter start date (DD/MM/YYYY): ")
 			fmt.Scan(&fromDateStr)
 			fmt.Print("Enter end date (DD/MM/YYYY): ")
