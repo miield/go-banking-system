@@ -52,6 +52,22 @@ const accountsFile = "accounts.json"
 // json file to store the transactions
 const transactionsFile = "transactions.json"
 
+func initializeFiles() {
+    ensureFileExists(accountsFile, "{}")         // create object for accounts
+    ensureFileExists(transactionsFile, "[]")    // create array for transactions
+}
+
+func ensureFileExists(filename, defaultContent string) { // defaultContent = data structure of the file
+    if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+        err := os.WriteFile(filename, []byte(defaultContent), 0644)
+        if err != nil {
+            fmt.Printf("Error creating file %s: %s\n", filename, err)
+        } else {
+            fmt.Printf("File initiated successfully %s with default content\n", filename)
+        }
+    }
+}
+
 /*  the value(*Account) of the map is a pointer, pointing to the newAccount
 is the memory storage of every newly created account, as a reference.
 */
@@ -351,7 +367,7 @@ func viewAccountDetails(accountNumber int64) error {
 // 	fmt.Println("--------------------------------------------------------------------")
 // 	fmt.Println("Transaction ID  | Type     | Amount     | Timestamp")
 // 	for _, txn := range filteredTransactions {
-// 		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("2006-01-02 15:04:05"))
+// 		fmt.Printf("%-15s | %-8s | %-10.2f | %s\n", txn.TransactionID, txn.Type, txn.Amount, txn.Timestamp.Format("02-01-2006 15:04:05"))
 // 	}
 // 	fmt.Println("--------------------------------------------------------------------")
 
@@ -434,10 +450,7 @@ func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
 		for _, txn := range account.Transactions {
 			// check if the transaction occurred on this date
 			if txn.Timestamp.Truncate(24 * time.Hour).Equal(date.Truncate(24 * time.Hour)) {
-				// Filter by transaction type if provided
-				if filter.transactionType == "" || txn.Type == filter.transactionType {
 					filteredTransactions = append(filteredTransactions, txn)
-				}
 			}
 		}
 	}
@@ -446,6 +459,10 @@ func filterTransactions(filter FilterTransaction) ([]Transaction, error) {
 	if len(filteredTransactions) == 0 {
 		return nil, fmt.Errorf("no transactions found for the specified range")
 	}
+
+	// debug
+	fmt.Printf("Filtering transactions for account %d from %s to %s\n", filter.accountNumber, filter.fromDate, filter.toDate)
+    fmt.Printf("Filtered Transactions: %+v\n", filteredTransactions)
 	
 	return filteredTransactions, nil
 }
@@ -467,6 +484,9 @@ func displayAllAccounts() {
 }
 
 func main() {
+
+	initializeFiles()
+
 	for {
         fmt.Println("\n=== Banking System ===")
         fmt.Println("1. Create Account")
@@ -568,8 +588,12 @@ func main() {
 		
 			fmt.Print("Enter account number: ")
 			fmt.Scan(&accountNumber)
-			fmt.Print("Enter transaction type (Debit/Credit, or leave blank): ")
-			fmt.Scan(&transactionType)
+			// fmt.Print("Enter transaction type, or leave blank): ")
+			// fmt.Scan(&transactionType)
+			// // Default or no filter
+			// if transactionType == "" {
+			// 	transactionType = "" 
+			// }1
 			fmt.Print("Enter start date (DD/MM/YYYY): ")
 			fmt.Scan(&fromDateStr)
 			fmt.Print("Enter end date (DD/MM/YYYY): ")
@@ -578,13 +602,13 @@ func main() {
 			fromDate, err := parseDate(fromDateStr)
 			if err != nil {
 				fmt.Printf("Error parsing start date: %s\n", err)
-				return
+				// return
 			}
 		
 			toDate, err := parseDate(toDateStr)
 			if err != nil {
 				fmt.Printf("Error parsing end date: %s\n", err)
-				return
+				// return
 			}
 		
 			filter := FilterTransaction{

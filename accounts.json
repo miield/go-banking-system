@@ -1,0 +1,40 @@
+{
+ "1524535246": {
+  "AccountNumber": 1524535246,
+  "Name": "Oyindamola Abiola",
+  "Balance": 595497,
+  "Transactions": [
+   {
+    "TransactionID": "9oqK0oXJolO2CynG",
+    "Type": "Deposit",
+    "Amount": 400000,
+    "Timestamp": "2025-01-17T02:36:10.40163+01:00"
+   },
+   {
+    "TransactionID": "tBYXgTTx0IKHIOYv",
+    "Type": "Deposit",
+    "Amount": 357000,
+    "Timestamp": "2025-01-17T02:37:14.871127+01:00"
+   },
+   {
+    "TransactionID": "bxVgpRBqCblhZL8X",
+    "Type": "Withdraw",
+    "Amount": 30500,
+    "Timestamp": "2025-01-17T02:37:41.6578+01:00"
+   },
+   {
+    "TransactionID": "bvNt0hkFSi2rBF5D",
+    "Type": "Withdraw",
+    "Amount": 200003,
+    "Timestamp": "2025-01-17T02:38:03.722719+01:00"
+   },
+   {
+    "TransactionID": "D86V1Eaa7fb9DLZ4",
+    "Type": "Deposit",
+    "Amount": 69000,
+    "Timestamp": "2025-01-17T02:38:13.630767+01:00"
+   }
+  ],
+  "CreationDate": "2025-01-17T02:36:10.40134+01:00"
+ }
+}
