@@ -2,15 +2,15 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
 	"os"
+	"regexp"
 	"strings"
 	"time"
-	"encoding/json"
 	"github.com/xuri/excelize/v2"
-
 )
 
 type Account struct {
@@ -113,9 +113,14 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 
 	allAccount = append(allAccount, *newAccount)
 
+	id, err := generateTransactionId()
+	if err := validateWithRegex(id); err != nil {
+		return nil, fmt.Errorf("failed to generate a valid transaction ID: %s", err)
+	}
+
 	// set the transaction struct
 	initialTxn := Transaction {
-		TransactionID: generateTransactionId(),
+		TransactionID: id,
 		Type:          "Deposit",
 		Amount:        initialDeposit,
 		Timestamp:     time.Now(),
@@ -131,7 +136,7 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	transactionList = append(transactionList, initialTxn)
 
 	// write the new account to the json file
-	err := writeToJson(accountsFile, accounts) 
+	err = writeToJson(accountsFile, accounts) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to save account: %s", err)
 	}
@@ -164,15 +169,32 @@ func readFromJson(filename string, dest interface{}) error {
 	return json.Unmarshal(file, dest)
 }
 
-func generateTransactionId() string {
+func generateTransactionId() (string, error) {
 	charRange := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	charSlice := make([]byte, 16)
 	seed := rand.NewSource(time.Now().UTC().UnixNano())
 	source := rand.New(seed)
+	// Validate with REGEX
 	for i := range charSlice { 
 		charSlice[i] = charRange[source.Intn(len(charRange))]
 	}
-	return string(charSlice)
+
+	// create an instance of the randomID
+	randomId := string(charSlice)
+
+	if err := validateWithRegex(randomId); err != nil {
+		return "", err
+	}
+	return string(charSlice), nil
+}
+
+func validateWithRegex(randomId string) error {
+	regex := `^[a-zA-Z0-9]{16}$`
+	matched, _ := regexp.MatchString(regex, randomId)
+	if !matched{
+		return errors.New("transaction id does not match")
+	}
+	return nil
 }
 
 func depositMoney(accountNumber int64, amount float64) (*Account, error) {
@@ -195,9 +217,14 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 	account := accounts[accountNumber]
 	account.Balance += amount
 
+	id, err := generateTransactionId()
+	if err := validateWithRegex(id); err != nil {
+		return nil, fmt.Errorf("failed to generate a valid transaction ID: %s", err)
+	}
+
 	// set the transaction struct
 	depositTxn := Transaction{
-		TransactionID: generateTransactionId(),
+		TransactionID: id,
 		Type:          "Deposit",
 		Amount:        amount,
 		Timestamp:     time.Now(),
@@ -215,7 +242,7 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 	fmt.Printf("Deposit of %.2f into account %d is successful \n", amount, accountNumber)
 
 	// update the file with the new transaction
-	err := writeToJson(accountsFile, accounts)
+	err = writeToJson(accountsFile, accounts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save deposit transaction: %s", err)
 	}
@@ -248,9 +275,14 @@ func withdrawMoney(accountNumber int64, amount float64) error {
 	// Deduct amount from balance
 	account.Balance -= amount
 
+	id, err := generateTransactionId()
+	if err := validateWithRegex(id); err != nil {
+		return fmt.Errorf("failed to generate a valid transaction ID: %s", err)
+	}
+
 	// Create withdrawal transaction
 	withdrawTxn := Transaction{
-		TransactionID: generateTransactionId(),
+		TransactionID: id,
 		Type:          "Withdraw",
 		Amount:        amount,
 		Timestamp:     time.Now(),
@@ -265,7 +297,7 @@ func withdrawMoney(accountNumber int64, amount float64) error {
 	fmt.Printf("Withdrawal of %.2f from account %d is successful. \n", amount, accountNumber)
 
 	// update the file with the withdrawal transaction
-	err := writeToJson(accountsFile, accounts) 
+	err = writeToJson(accountsFile, accounts) 
 	if err != nil {
 		return fmt.Errorf("failed to save withdrawal transaction: %s", err)
 	}
@@ -275,10 +307,9 @@ func withdrawMoney(accountNumber int64, amount float64) error {
 
 func transferMoney(sender int64, receiver int64, amount float64) error {
 	// load the updated account file
-	if err := readFromJson(accountsFile, &accounts)
-	err != nil {
+	if err := readFromJson(accountsFile, &accounts); err != nil {
 		return fmt.Errorf("failed to load accounts: %s", err)
-	}
+	}	
 
 	// Validate sender and receiver accounts
 	if _, exists := accounts[sender]; !exists {
@@ -303,10 +334,14 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 		return errors.New("insufficient balance")
 	}
 
+	debitId, err := generateTransactionId()
+	if err := validateWithRegex(debitId); err != nil {
+		return fmt.Errorf("failed to generate a valid transaction ID: %s", err)
+	}
 	// Deduct amount from sender's account and create transaction
 	senderAccount.Balance -= amount
 	senderTxn := Transaction{
-		TransactionID: generateTransactionId(),
+		TransactionID: debitId,
 		Type:          "Transfer",
 		Amount:        amount,
 		Timestamp:     time.Now(),
@@ -319,8 +354,14 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 
 	// Credit amount to receiver's account and create transaction
 	receiverAccount.Balance += amount
+
+	creditId, err := generateTransactionId()
+	if err := validateWithRegex(creditId); err != nil {
+		return fmt.Errorf("failed to generate a valid transaction ID: %s", err)
+	}
+
 	receiverTxn := Transaction{
-		TransactionID: generateTransactionId(),
+		TransactionID: creditId,
 		Type:          "Credit",
 		Amount:        amount,
 		Timestamp:     time.Now(),
@@ -334,7 +375,7 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 	// Confirm transfer
 	fmt.Printf("Transfer of %.2f from account %d to account %d is successful \n", amount, sender, receiver)
 	// update the file with the new transaction
-	err := writeToJson(accountsFile, accounts)
+	err = writeToJson(accountsFile, accounts)
 	if err != nil {
 		return fmt.Errorf("failed to save transfer transaction: %s", err)
 	}
