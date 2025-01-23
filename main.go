@@ -426,7 +426,7 @@ func generateStatement(filter FilterTransaction) error {
 	// set headers for transactions
 	headers := []string{"Transaction ID", "Type", "Amount", "Timestamp"}
 	for i, header := range headers {
-		column := string('A' + i) // Columns: A, B, C...
+		column := string(rune('A' + i)) // Columns: A, B, C...
 		statementExcelFile.SetCellValue("Sheet1", fmt.Sprintf("%s%d", column, startRow), header)
 	}
 
@@ -497,10 +497,33 @@ func parseDate(input string) (time.Time, error) {
     return parsedDate, nil
 }
 
-func displayAllAccounts() {
-	for _, account := range accounts {
-		fmt.Printf("Accounts: %+v \n", account)
+// func displayAllAccounts() { // display only the basic details of all account in a file ?????????
+// 	for _, account := range accounts {
+// 		fmt.Printf("Accounts: %+v \n", account)
+// 	}
+// }
+
+func displayAllAccountsToExcel() error {
+	f := excelize.NewFile()
+
+	// Create header
+	f.SetCellValue("Sheet1", "A1", "Account Number")
+	f.SetCellValue("Sheet1", "B1", "Account Name")
+	f.SetCellValue("Sheet1", "C1", "Balance")
+
+	for i, acc := range allAccount {
+		f.SetCellValue("Sheet1", fmt.Sprintf("A%d", i+2), acc.AccountNumber)
+		f.SetCellValue("Sheet1", fmt.Sprintf("B%d", i+2), acc.Name)
+		f.SetCellValue("Sheet1", fmt.Sprintf("C%d", i+2), acc.Balance)
 	}
+
+	// Save to file
+	if err := f.SaveAs("accounts.xlsx"); err != nil {
+		return fmt.Errorf("failed to save excel file: %s", err)
+	}
+
+	fmt.Println("Accounts data saved to accounts.xlsx successfully!")
+	return nil
 }
 
 func main() {
@@ -636,7 +659,7 @@ func main() {
 			}
 
         case 7:
-            displayAllAccounts()
+            displayAllAccountsToExcel()
         case 8:
             fmt.Println("Exiting... Thank you!")
             return
