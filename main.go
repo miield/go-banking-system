@@ -118,11 +118,6 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 		return nil, fmt.Errorf("failed to generate a valid transaction ID: %s", err)
 	}
 
-	err = validateWithRegex(id) 
-	if err != nil {
-		return nil, fmt.Errorf("failed to validate transaction ID: %s", err)
-	}
-
 	// set the transaction struct
 	initialTxn := Transaction {
 		TransactionID: id,
@@ -258,8 +253,7 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 
 func withdrawMoney(accountNumber int64, amount float64) error {
 	// load the updated file
-	if err := readFromJson(accountsFile, &accounts)
-	err != nil {
+	if err := readFromJson(accountsFile, &accounts); err != nil {
 		return fmt.Errorf("failed to load the file: %s", err)
 	}
 
