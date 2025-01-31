@@ -114,8 +114,13 @@ func createAccount(accountName string, initialDeposit float64) (*Account, error)
 	allAccount = append(allAccount, *newAccount)
 
 	id, err := generateTransactionId()
-	if err := validateWithRegex(id); err != nil {
+	if err != nil { // if error is not empty, i.e if error exists
 		return nil, fmt.Errorf("failed to generate a valid transaction ID: %s", err)
+	}
+
+	err = validateWithRegex(id) 
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate transaction ID: %s", err)
 	}
 
 	// set the transaction struct
@@ -174,7 +179,7 @@ func generateTransactionId() (string, error) {
 	charSlice := make([]byte, 16)
 	seed := rand.NewSource(time.Now().UTC().UnixNano())
 	source := rand.New(seed)
-	// Validate with REGEX
+	
 	for i := range charSlice { 
 		charSlice[i] = charRange[source.Intn(len(charRange))]
 	}
@@ -182,10 +187,12 @@ func generateTransactionId() (string, error) {
 	// create an instance of the randomID
 	randomId := string(charSlice)
 
-	if err := validateWithRegex(randomId); err != nil {
+	// validate with REGEX
+	err := validateWithRegex(randomId)
+	if err != nil {
 		return "", err
 	}
-	return string(charSlice), nil
+	return randomId, nil
 }
 
 func validateWithRegex(randomId string) error {
@@ -218,7 +225,7 @@ func depositMoney(accountNumber int64, amount float64) (*Account, error) {
 	account.Balance += amount
 
 	id, err := generateTransactionId()
-	if err := validateWithRegex(id); err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("failed to generate a valid transaction ID: %s", err)
 	}
 
@@ -276,7 +283,7 @@ func withdrawMoney(accountNumber int64, amount float64) error {
 	account.Balance -= amount
 
 	id, err := generateTransactionId()
-	if err := validateWithRegex(id); err != nil {
+	if err != nil {
 		return fmt.Errorf("failed to generate a valid transaction ID: %s", err)
 	}
 
@@ -335,7 +342,7 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 	}
 
 	debitId, err := generateTransactionId()
-	if err := validateWithRegex(debitId); err != nil {
+	if err != nil {
 		return fmt.Errorf("failed to generate a valid transaction ID: %s", err)
 	}
 	// Deduct amount from sender's account and create transaction
@@ -356,7 +363,7 @@ func transferMoney(sender int64, receiver int64, amount float64) error {
 	receiverAccount.Balance += amount
 
 	creditId, err := generateTransactionId()
-	if err := validateWithRegex(creditId); err != nil {
+	if err != nil {
 		return fmt.Errorf("failed to generate a valid transaction ID: %s", err)
 	}
 
@@ -496,12 +503,6 @@ func parseDate(input string) (time.Time, error) {
     }
     return parsedDate, nil
 }
-
-// func displayAllAccounts() { // display only the basic details of all account in a file ?????????
-// 	for _, account := range accounts {
-// 		fmt.Printf("Accounts: %+v \n", account)
-// 	}
-// }
 
 func displayAllAccountsToExcel() error {
 	f := excelize.NewFile()
